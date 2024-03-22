@@ -119,12 +119,14 @@ void SetGlfwCallbacks(GLFWwindow* targetWindow)
     glfwSetWindowContentScaleCallback(targetWindow, OnWindowContentScale);
 }
 
+#ifdef DECCER_CUBE_DEBUG_SWITCH
 void APIENTRY OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, 
     GLsizei length, const GLchar* message, const void* userParam)
 {
     int x = 1;
     std::cout << id << "\n";
 }
+#endif
 
 int main(void)
 {
@@ -147,7 +149,10 @@ int main(void)
     glfwWindowHint(GLFW_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+#ifdef DECCER_CUBE_DEBUG_SWITCH
     glfwWindowHint(GLFW_CONTEXT_DEBUG, GLFW_TRUE);
+#endif
 
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
@@ -159,7 +164,9 @@ int main(void)
         return -1;
     }
 
+#ifdef DECCER_CUBE_DEBUG_SWITCH
     glDebugMessageCallback(OpenGLDebugCallback, "My Data");
+#endif
 
     int backBufferWidth, backBufferHeight;
     glfwGetFramebufferSize(window, &backBufferWidth, &backBufferHeight);

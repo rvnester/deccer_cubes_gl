@@ -4,6 +4,8 @@ project(deccer_cubes_GL
 LANGUAGES C CXX
 )
 
+set(CMAKE_CXX_STANDARD 17)
+
 include(FetchContent)
 
 #FetchContent_Declare(
@@ -76,6 +78,7 @@ FetchContent_MakeAvailable(glad)
 
 
 add_executable(deccer_cubes_GL main.cpp GLTrace.h GLTrace.cpp)
+target_compile_definitions(deccer_cubes_GL PRIVATE DECCER_CUBE_DEBUG_SWITCH)
 
 target_link_libraries(deccer_cubes_GL PRIVATE opengl32)
 #target_link_libraries(deccer_cubes_GL PRIVATE glew32)
