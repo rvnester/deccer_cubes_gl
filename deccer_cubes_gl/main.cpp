@@ -123,8 +123,9 @@ void SetGlfwCallbacks(GLFWwindow* targetWindow)
 void APIENTRY OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, 
     GLsizei length, const GLchar* message, const void* userParam)
 {
-    int x = 1;
-    std::cout << id << "\n";
+    fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+        (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
+        type, severity, message);
 }
 #endif
 
@@ -165,7 +166,9 @@ int main(void)
     }
 
 #ifdef DECCER_CUBE_DEBUG_SWITCH
-    glDebugMessageCallback(OpenGLDebugCallback, "My Data");
+    glEnable(GL_DEBUG_OUTPUT);
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    glDebugMessageCallback(OpenGLDebugCallback, nullptr);
 #endif
 
     int backBufferWidth, backBufferHeight;
