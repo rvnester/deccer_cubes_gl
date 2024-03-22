@@ -1,6 +1,5 @@
 #include <iostream>
-//#include <glad/glad.h>
-#include "GLTrace.h"
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/ext/matrix_transform.hpp>
@@ -120,12 +119,11 @@ void SetGlfwCallbacks(GLFWwindow* targetWindow)
     glfwSetWindowContentScaleCallback(targetWindow, OnWindowContentScale);
 }
 
-void APIENTRY OpenGLDebugCallback(GLenum source,
-    GLenum type, GLuint id, GLenum severity, GLsizei length,
-    const GLchar* message, cosnt void* userParam)
+void APIENTRY OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, 
+    GLsizei length, const GLchar* message, const void* userParam)
 {
     int x = 1;
-    std::cout << userParam << "\n";
+    std::cout << id << "\n";
 }
 
 int main(void)
@@ -134,16 +132,9 @@ int main(void)
 
     GLFWwindow* window;
 
-    glfwWindowHint(GLFW_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_VERSION_MINOR, 5);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_CONTEXT_DEBUG, GLFW_TRUE);
-
     /* Initialize the library */
     if (!glfwInit())
         return -1;
-
-    
 
     /* Create a windowed mode window and its OpenGL context */
     window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
@@ -152,6 +143,11 @@ int main(void)
         glfwTerminate();
         return -1;
     }
+
+    glfwWindowHint(GLFW_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_VERSION_MINOR, 6);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_CONTEXT_DEBUG, GLFW_TRUE);
 
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
@@ -164,7 +160,6 @@ int main(void)
     }
 
     glDebugMessageCallback(OpenGLDebugCallback, "My Data");
-    //HookGLTrace();
 
     int backBufferWidth, backBufferHeight;
     glfwGetFramebufferSize(window, &backBufferWidth, &backBufferHeight);
