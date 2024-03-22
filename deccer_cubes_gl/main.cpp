@@ -120,6 +120,13 @@ void SetGlfwCallbacks(GLFWwindow* targetWindow)
     glfwSetWindowContentScaleCallback(targetWindow, OnWindowContentScale);
 }
 
+void APIENTRY OpenGLDebugCallback(GLenum source,
+    GLenum type, GLuint id, GLenum severity, GLsizei length,
+    const GLchar* message, cosnt void* userParam)
+{
+    int x = 1;
+    std::cout << userParam << "\n";
+}
 
 int main(void)
 {
@@ -156,7 +163,8 @@ int main(void)
         return -1;
     }
 
-    HookGLTrace();
+    glDebugMessageCallback(OpenGLDebugCallback, "My Data");
+    //HookGLTrace();
 
     int backBufferWidth, backBufferHeight;
     glfwGetFramebufferSize(window, &backBufferWidth, &backBufferHeight);
