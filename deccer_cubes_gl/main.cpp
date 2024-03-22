@@ -1,5 +1,5 @@
 #include <iostream>
-#include <glad/glad.h>
+//#include <glad/glad.h>
 #include "GLTrace.h"
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -127,9 +127,10 @@ int main(void)
 
     GLFWwindow* window;
 
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_VERSION_MINOR, 5);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_CONTEXT_DEBUG, GLFW_TRUE);
 
     /* Initialize the library */
     if (!glfwInit())
