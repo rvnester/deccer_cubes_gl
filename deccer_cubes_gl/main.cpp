@@ -153,8 +153,8 @@ int main(void)
     glfwMakeContextCurrent(window);
     SetGlfwCallbacks(window);
 
-    int version = gladLoadGL();
-    if (version == 0) {
+    if (!gladLoadGL()) 
+    {
         std::cout<<"Failed to initialize OpenGL context\n";
         return -1;
     }
