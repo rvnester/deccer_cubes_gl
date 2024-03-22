@@ -6,6 +6,13 @@ LANGUAGES C CXX
 
 include(FetchContent)
 
+#FetchContent_Declare(
+#    DilligentEngine
+#    GIT_REPOSITORY https://github.com/DiligentGraphics/DiligentEngine.git
+#    GIT_SHALLOW OFF
+#)
+#FetchContent_MakeAvailable(DilligentEngine)
+
 FetchContent_Declare(
 	glfw
 	GIT_REPOSITORY https://github.com/glfw/glfw.git
@@ -19,11 +26,17 @@ FetchContent_Declare(
 	GIT_SHALLOW OFF
 )
 FetchContent_MakeAvailable(glm)
-
 target_compile_definitions(glm INTERFACE
 	GLM_FORCE_AVX2
 	GLM_FORCE_RADIANS
 )
+
+FetchContent_Declare(
+	glew
+	GIT_REPOSITORY https://github.com/nigels-com/glew.git
+	GIT_SHALLOW OFF
+)
+FetchContent_MakeAvailable(glew)
 
 FetchContent_Declare(
 	glad
@@ -62,9 +75,10 @@ FetchContent_MakeAvailable(glad)
 #)
 
 
-add_executable(deccer_cubes_GL main.cpp)
+add_executable(deccer_cubes_GL main.cpp GLTrace.h GLTrace.cpp)
 
 target_link_libraries(deccer_cubes_GL PRIVATE opengl32)
+#target_link_libraries(deccer_cubes_GL PRIVATE glew32)
 target_link_libraries(deccer_cubes_GL PRIVATE glad)
 target_link_libraries(deccer_cubes_GL PRIVATE glfw)
 target_link_libraries(deccer_cubes_GL PRIVATE glm::glm)

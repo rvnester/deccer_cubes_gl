@@ -1,5 +1,6 @@
 #include <iostream>
 #include <glad/glad.h>
+#include "GLTrace.h"
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/ext/matrix_transform.hpp>
@@ -119,6 +120,7 @@ void SetGlfwCallbacks(GLFWwindow* targetWindow)
     glfwSetWindowContentScaleCallback(targetWindow, OnWindowContentScale);
 }
 
+
 int main(void)
 {
     glm::mat4 myMatrix = glm::translate(glm::mat4(1), glm::vec3(1, 5, 1));
@@ -152,6 +154,8 @@ int main(void)
         std::cout<<"Failed to initialize OpenGL context\n";
         return -1;
     }
+
+    HookGLTrace();
 
     int backBufferWidth, backBufferHeight;
     glfwGetFramebufferSize(window, &backBufferWidth, &backBufferHeight);
