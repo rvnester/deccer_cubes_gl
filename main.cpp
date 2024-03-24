@@ -177,48 +177,6 @@ void main()
 }
 )";
 
-enum class ShaderType
-{
-    Vertex,
-    Fragment,
-};
-
-GLuint GetShader(ShaderType shaderType, const std::string& source)
-{
-    GLenum glShaderType;
-
-    if (shaderType == ShaderType::Vertex)
-    {
-        glShaderType = GL_VERTEX_SHADER;
-    }
-
-    else if (shaderType == ShaderType::Fragment)
-    {
-        glShaderType = GL_FRAGMENT_SHADER;
-    }
-
-    GLuint shader = glCreateShader(glShaderType);
-
-    const char* ptmp = source.c_str();
-    glShaderSource(shader, 1, &ptmp, 0);
-
-    GLint status;
-    glCompileShader(shader);
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
-    if (status == GL_FALSE) {
-        GLint infoLogLength;
-        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLength);
-        GLchar* infoLog = new GLchar[infoLogLength];
-        glGetShaderInfoLog(shader, infoLogLength, NULL, infoLog);
-        std::cerr << "Compile log: " << infoLog << std::endl;
-        delete[] infoLog;
-
-        return -1;
-    }
-
-    return shader;
-}
-
 void CheckLinkStatus(GLuint program)
 {
     GLint isLinked = 0;
@@ -329,13 +287,11 @@ int main(void)
     GLuint vertexProgram = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, vertexShaderSource);
     CheckLinkStatus(vertexProgram);
 
-
     // Fragment Stage
     GLuint fragmentShader = GetShader(ShaderType::Fragment, shader_fs);
     const GLchar* fragmentShaderSource[] = { shader_fs.c_str() };
     GLuint fragmentProgram = glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, fragmentShaderSource);
     CheckLinkStatus(fragmentProgram);
-
 
     // Program pipelines allow us to mix and match different programs.
     GLuint programPipeline;
