@@ -304,20 +304,18 @@ int main(void)
     // Vertex Stage
     GLuint vertexShader = GetShader(ShaderType::Vertex, shader_vs);
     GLuint vertexProgram = glCreateProgram();
-    glProgramParameteri(vertexProgram, GL_PROGRAM_SEPARABLE, GL_TRUE);
+    glProgramParameteri(vertexProgram, GL_PROGRAM_SEPARABLE, GL_TRUE); // must be set before linking program
     glAttachShader(vertexProgram, vertexShader);
     //glBindAttribLocation(vertexProgram, 0, "vVertex");
     //glBindAttribLocation(vertexProgram, 1, "vColor");
     glLinkProgram(vertexProgram);
-    GLint linkStatus;
-    glGetProgramiv(vertexProgram, GL_LINK_STATUS, &linkStatus);
     glDetachShader(vertexProgram, vertexShader);
     glDeleteShader(vertexShader);
 
     // Fragment Stage
     GLuint fragmentShader = GetShader(ShaderType::Fragment, shader_fs);
     GLuint fragmentProgram = glCreateProgram();
-    glProgramParameteri(fragmentProgram, GL_PROGRAM_SEPARABLE, GL_TRUE);
+    glProgramParameteri(fragmentProgram, GL_PROGRAM_SEPARABLE, GL_TRUE); // must be set befroe liking program
     glAttachShader(fragmentProgram, fragmentShader);
     //glBindFragDataLocation(fragmentProgram, 0, "iColor");
     glLinkProgram(fragmentProgram);
@@ -328,7 +326,7 @@ int main(void)
     GLuint programPipeline;
     glCreateProgramPipelines(1, &programPipeline);
 
-    // Connect shader stages
+    // Connect shader stages, aka build render pipeline
     glUseProgramStages(programPipeline, GL_VERTEX_SHADER_BIT, vertexProgram);
     glUseProgramStages(programPipeline, GL_FRAGMENT_SHADER_BIT, fragmentProgram);
 
