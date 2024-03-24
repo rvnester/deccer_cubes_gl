@@ -4,6 +4,9 @@
 #include <glm/glm.hpp>
 #include <glm/ext/matrix_transform.hpp>
 
+#pragma region GLFWCallbacks
+
+
 void OnGlfwError(int error, const char* description)
 {
     std::cout << "Error: " << error << " " << description << std::endl;
@@ -119,6 +122,8 @@ void SetGlfwCallbacks(GLFWwindow* targetWindow)
     glfwSetWindowContentScaleCallback(targetWindow, OnWindowContentScale);
 }
 
+#pragma endregion
+
 #ifdef DECCER_CUBE_DEBUG_SWITCH
 void APIENTRY OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, 
     GLsizei length, const GLchar* message, const void* userParam)
@@ -127,6 +132,89 @@ void APIENTRY OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum 
     std::cout << id << "\n";
 }
 #endif
+
+struct VertexPosColor
+{
+    glm::vec4 pos;
+    glm::vec3 color;
+};
+
+#pragma region Shaders
+
+
+std::string shader_vs =
+R"(
+#version 460 core
+
+layout (location = 0) in vec4 vVertex;
+layout (location = 1) in vec3 vColor;
+
+layout (location = 0) out vec3 oColor;
+
+void main()
+{
+	gl_Position = vVertex;
+    oColor = vColor;
+}
+)";
+
+std::string shader_fs =
+R"(
+#version 460 core
+
+layout (location = 0) in vec3 iColor;
+
+layout (location = 0) out vec4 vFragColor;
+
+void main()
+{
+	vFragColor = vec4(iColor, 1.0);
+}
+)";
+
+enum class ShaderType
+{
+    Vertex,
+    Fragment,
+};
+
+GLuint GetShader(ShaderType shaderType, const std::string& source)
+{
+    GLenum glShaderType;
+
+    if (shaderType == ShaderType::Vertex)
+    {
+        glShaderType = GL_VERTEX_SHADER;
+    }
+
+    else if (shaderType == ShaderType::Fragment)
+    {
+        glShaderType = GL_FRAGMENT_SHADER;
+    }
+
+    GLuint shader = glCreateShader(glShaderType);
+
+    const char* ptmp = source.c_str();
+    glShaderSource(shader, 1, &ptmp, 0);
+
+    GLint status;
+    glCompileShader(shader);
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+    if (status == GL_FALSE) {
+        GLint infoLogLength;
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLength);
+        GLchar* infoLog = new GLchar[infoLogLength];
+        glGetShaderInfoLog(shader, infoLogLength, NULL, infoLog);
+        std::cerr << "Compile log: " << infoLog << std::endl;
+        delete[] infoLog;
+
+        return -1;
+    }
+
+    return shader;
+}
+
+#pragma endregion
 
 int main(void)
 {
@@ -172,12 +260,76 @@ int main(void)
     glfwGetFramebufferSize(window, &backBufferWidth, &backBufferHeight);
     glViewport(0, 0, backBufferWidth, backBufferHeight);
 
-    glClearColor(1, 1, 0, 1);
+    // Define vertrices
+    std::vector<VertexPosColor> vertices;
+    vertices.push_back({ glm::vec4( 0.0f,  0.5f, 0.0f, 1.0f), glm::vec3(0.6f, 0.3f, 1.0f)});
+    vertices.push_back({ glm::vec4(-0.5f, -0.5f, 0.0f, 1.0f), glm::vec3(1.0f, 0.3f, 0.1f)});
+    vertices.push_back({ glm::vec4( 0.5f, -0.5f, 0.0f, 1.0f), glm::vec3(0.0f, 0.9f, 0.5f)});
+
+    // Create vertex buffer
+    GLuint vertexBuffer;
+    glCreateBuffers(1, &vertexBuffer);
+    // Could use either glNamedBufferStorage or glNamedBufferData
+    // BufferStorage is immutable and can only called once for each buffer.
+    // BufferData is not as optimized and will allocate for the same buffer
+    // with each call.
+    // An idea for a good use of BufferStorage is as a Dst of upload buffer.
+    glNamedBufferData(vertexBuffer,
+        vertices.size() * sizeof(VertexPosColor), vertices.data(), GL_STATIC_DRAW);
+
+    // Create vertex layout
+    GLuint vertexLayout;
+    glCreateVertexArrays(1, &vertexLayout);
+
+    // Define the vertex layout for position data
+    int positionLocation = 0;
+    glVertexArrayAttribFormat(vertexLayout, positionLocation, 4, GL_FLOAT, GL_FALSE, 0);
+    glVertexArrayAttribBinding(vertexLayout, positionLocation, 0); // (location = positionLocation, binding = 0)
+    glEnableVertexArrayAttrib(vertexLayout, positionLocation); // Don't forget to enable the attribute
+
+    // Define the vertex layout for color data
+    int colorLocation = 1;
+    glVertexArrayAttribFormat(vertexLayout, colorLocation, 3, GL_FLOAT, GL_FALSE, offsetof(VertexPosColor, color));
+    glVertexArrayAttribBinding(vertexLayout, colorLocation, 0); // (location = colorLocation, binding = 0)
+    glEnableVertexArrayAttrib(vertexLayout, colorLocation); // Don't forget to enable the attribute
+
+    // Bind vertex buffer to a vertex layout (aka use a buffer view with vertex buffer)
+    glVertexArrayVertexBuffer(vertexLayout, 0, vertexBuffer, 0, sizeof(VertexPosColor));
+
+    // Vertex Shader
+    GLuint vertexShader = GetShader(ShaderType::Vertex, shader_vs);
+    GLuint vertexProgram = glCreateProgram();
+    glAttachShader(vertexProgram, vertexShader);
+    glLinkProgram(vertexProgram);
+
+    // Fragment Shader
+    GLuint fragmentShader = GetShader(ShaderType::Fragment, shader_fs);
+    GLuint fragmentProgram = glCreateProgram();
+    glAttachShader(fragmentProgram, fragmentShader);
+    glLinkProgram(fragmentProgram);
+
+    // Shaders use pipeline objects to mix&match shaders, instead of liking them
+    GLuint programPipeline;
+    glCreateProgramPipelines(1, &programPipeline);
+
+    // Connect shader stages
+    glUseProgramStages(programPipeline, GL_VERTEX_SHADER_BIT, vertexProgram);
+    glUseProgramStages(programPipeline, GL_FRAGMENT_SHADER_BIT, fragmentProgram);
+
+    //glClearColor(1, 1, 0, 1);
+    float clearColor[] = { 1, 1, 0, 1 };
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
         /* Render here */
-        glClear(GL_COLOR_BUFFER_BIT);
+        //glClear(GL_COLOR_BUFFER_BIT);
+        glClearBufferfv(GL_COLOR, 0, clearColor);
+
+        glBindProgramPipeline(programPipeline);
+
+        glBindVertexArray(vertexLayout);
+
+        glDrawArrays(GL_TRIANGLES, 0, 3);
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
