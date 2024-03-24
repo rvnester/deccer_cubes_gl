@@ -321,6 +321,12 @@ int main(void)
         glfwPollEvents();
     }
 
+    glDeleteVertexArrays(1, &vertexLayout);
+    glDeleteBuffers(1, &vertexBuffer);
+    glDeleteProgram(vertexProgram);
+    glDeleteProgram(fragmentProgram);
+    glDeleteProgramPipelines(1, &programPipeline);
+
     glfwTerminate();
     return 0;
 }
