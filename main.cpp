@@ -219,6 +219,28 @@ GLuint GetShader(ShaderType shaderType, const std::string& source)
     return shader;
 }
 
+void CheckLinkStatus(GLuint program)
+{
+    GLint isLinked = 0;
+    glGetProgramiv(program, GL_LINK_STATUS, &isLinked);
+    if (isLinked == GL_FALSE)
+    {
+        GLint maxLength = 0;
+        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
+
+        // The maxLength includes the NULL character
+        std::vector<GLchar> infoLog(maxLength);
+        glGetProgramInfoLog(program, maxLength, &maxLength, &infoLog[0]);
+
+        // The program is useless now. So delete it.
+        glDeleteProgram(program);
+
+        // Provide the infolog in whatever manner you deem best.
+        // Exit with failure.
+        throw std::exception("Failed to link program");
+    }
+}
+
 #pragma endregion
 
 int main(void)
@@ -303,26 +325,19 @@ int main(void)
 
     // Vertex Stage
     GLuint vertexShader = GetShader(ShaderType::Vertex, shader_vs);
-    GLuint vertexProgram = glCreateProgram();
-    glProgramParameteri(vertexProgram, GL_PROGRAM_SEPARABLE, GL_TRUE); // must be set before linking program
-    glAttachShader(vertexProgram, vertexShader);
-    //glBindAttribLocation(vertexProgram, 0, "vVertex");
-    //glBindAttribLocation(vertexProgram, 1, "vColor");
-    glLinkProgram(vertexProgram);
-    glDetachShader(vertexProgram, vertexShader);
-    glDeleteShader(vertexShader);
+    const GLchar* vertexShaderSource[] = { shader_vs.c_str() };
+    GLuint vertexProgram = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, vertexShaderSource);
+    CheckLinkStatus(vertexProgram);
+
 
     // Fragment Stage
     GLuint fragmentShader = GetShader(ShaderType::Fragment, shader_fs);
-    GLuint fragmentProgram = glCreateProgram();
-    glProgramParameteri(fragmentProgram, GL_PROGRAM_SEPARABLE, GL_TRUE); // must be set befroe liking program
-    glAttachShader(fragmentProgram, fragmentShader);
-    //glBindFragDataLocation(fragmentProgram, 0, "iColor");
-    glLinkProgram(fragmentProgram);
-    glDetachShader(fragmentProgram, fragmentShader);
-    glDeleteShader(fragmentShader);
+    const GLchar* fragmentShaderSource[] = { shader_fs.c_str() };
+    GLuint fragmentProgram = glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, fragmentShaderSource);
+    CheckLinkStatus(fragmentProgram);
 
-    // Shaders use pipeline objects to mix&match shaders, instead of liking them
+
+    // Program pipelines allow us to mix and match different programs.
     GLuint programPipeline;
     glCreateProgramPipelines(1, &programPipeline);
 
