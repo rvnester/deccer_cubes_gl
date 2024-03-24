@@ -282,13 +282,11 @@ int main(void)
     glVertexArrayVertexBuffer(vertexLayout, 0, vertexBuffer, 0, sizeof(VertexPosColor));
 
     // Vertex Stage
-    GLuint vertexShader = GetShader(ShaderType::Vertex, shader_vs);
     const GLchar* vertexShaderSource[] = { shader_vs.c_str() };
     GLuint vertexProgram = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, vertexShaderSource);
     CheckLinkStatus(vertexProgram);
 
     // Fragment Stage
-    GLuint fragmentShader = GetShader(ShaderType::Fragment, shader_fs);
     const GLchar* fragmentShaderSource[] = { shader_fs.c_str() };
     GLuint fragmentProgram = glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, fragmentShaderSource);
     CheckLinkStatus(fragmentProgram);
