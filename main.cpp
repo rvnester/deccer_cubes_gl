@@ -151,6 +151,11 @@ layout (location = 1) in vec3 vColor;
 
 layout (location = 0) out vec3 oColor;
 
+out gl_PerVertex // must be used with seperable shader program
+{
+    vec4 gl_Position;
+};
+
 void main()
 {
 	gl_Position = vVertex;
@@ -296,17 +301,28 @@ int main(void)
     // Bind vertex buffer to a vertex layout (aka use a buffer view with vertex buffer)
     glVertexArrayVertexBuffer(vertexLayout, 0, vertexBuffer, 0, sizeof(VertexPosColor));
 
-    // Vertex Shader
+    // Vertex Stage
     GLuint vertexShader = GetShader(ShaderType::Vertex, shader_vs);
     GLuint vertexProgram = glCreateProgram();
+    glProgramParameteri(vertexProgram, GL_PROGRAM_SEPARABLE, GL_TRUE);
     glAttachShader(vertexProgram, vertexShader);
+    //glBindAttribLocation(vertexProgram, 0, "vVertex");
+    //glBindAttribLocation(vertexProgram, 1, "vColor");
     glLinkProgram(vertexProgram);
+    GLint linkStatus;
+    glGetProgramiv(vertexProgram, GL_LINK_STATUS, &linkStatus);
+    glDetachShader(vertexProgram, vertexShader);
+    glDeleteShader(vertexShader);
 
-    // Fragment Shader
+    // Fragment Stage
     GLuint fragmentShader = GetShader(ShaderType::Fragment, shader_fs);
     GLuint fragmentProgram = glCreateProgram();
+    glProgramParameteri(fragmentProgram, GL_PROGRAM_SEPARABLE, GL_TRUE);
     glAttachShader(fragmentProgram, fragmentShader);
+    //glBindFragDataLocation(fragmentProgram, 0, "iColor");
     glLinkProgram(fragmentProgram);
+    glDetachShader(fragmentProgram, fragmentShader);
+    glDeleteShader(fragmentShader);
 
     // Shaders use pipeline objects to mix&match shaders, instead of liking them
     GLuint programPipeline;
