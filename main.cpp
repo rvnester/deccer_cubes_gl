@@ -1,8 +1,10 @@
 #include <iostream>
+#include <chrono>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
-#include <glm/ext/matrix_transform.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #pragma region GLFWCallbacks
 
@@ -141,7 +143,6 @@ struct VertexPosColor
 
 #pragma region Shaders
 
-
 std::string shader_vs =
 R"(
 #version 460 core
@@ -156,9 +157,15 @@ out gl_PerVertex // must be used with seperable shader program
     vec4 gl_Position;
 };
 
+uniform PerRenderable
+{
+    mat4 World;
+};
+
+
 void main()
 {
-	gl_Position = vVertex;
+	gl_Position = World * vVertex;
     oColor = vColor;
 }
 )";
@@ -203,8 +210,6 @@ void CheckLinkStatus(GLuint program)
 
 int main(void)
 {
-    glm::mat4 myMatrix = glm::translate(glm::mat4(1), glm::vec3(1, 5, 1));
-
     GLFWwindow* window;
 
     /* Initialize the library */
@@ -299,19 +304,94 @@ int main(void)
     glUseProgramStages(programPipeline, GL_VERTEX_SHADER_BIT, vertexProgram);
     glUseProgramStages(programPipeline, GL_FRAGMENT_SHADER_BIT, fragmentProgram);
 
+    // Uniform buffer for the PerRenderable uniform block
+    //
+    
+    // Query uniform buffer information
+    std::string uniformBlockName{ "PerRenderable" };
+    GLuint uniformBlockIndex = glGetUniformBlockIndex(vertexProgram, uniformBlockName.c_str());
+
+    GLint uniformBlockSize;
+    glGetActiveUniformBlockiv(vertexProgram, uniformBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &uniformBlockSize);
+    
+    GLint uniformBlockBinding;
+    glGetActiveUniformBlockiv(vertexProgram, uniformBlockIndex, GL_UNIFORM_BLOCK_BINDING, &uniformBlockBinding);
+
+    // The above call with UNIFORM_BLOCK_BINDING already has the uniform buffer set to a specific binding index.
+    // However in a real app we'd like to decide to which binding index the uniform block should be bound to.
+    // This will allow us to set a globally shared uniform (aka constant) buffers and use then between shaders.
+    // The following call doesn't change the binding index, but this is just here to show how it can be done.
+    glUniformBlockBinding(vertexProgram, uniformBlockIndex, uniformBlockBinding);
+
+
+    GLint numBlockActiveUniforms;
+    glGetActiveUniformBlockiv(vertexProgram, uniformBlockIndex, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, &numBlockActiveUniforms);
+
+    // Query unformation about uniforms
+    char* uniformNames[1] = { "World" };
+    const int numUniforms = 1;
+    GLuint uniformIndices[numUniforms];
+    glGetUniformIndices(vertexProgram, numUniforms, uniformNames, uniformIndices);
+
+    GLint uniformOffsets[numUniforms];
+    glGetActiveUniformsiv(vertexProgram, numUniforms, uniformIndices, GL_UNIFORM_OFFSET, uniformOffsets);
+
+    GLint uniformArrayStrides[numUniforms];
+    glGetActiveUniformsiv(vertexProgram, numUniforms, uniformIndices, GL_UNIFORM_ARRAY_STRIDE, uniformArrayStrides);
+
+    GLint uniformMatrixStrides[numUniforms];
+    glGetActiveUniformsiv(vertexProgram, numUniforms, uniformIndices, GL_UNIFORM_MATRIX_STRIDE, uniformMatrixStrides);
+
+    GLint uniformSizes[numUniforms];
+    glGetActiveUniformsiv(vertexProgram, numUniforms, uniformIndices, GL_UNIFORM_SIZE, uniformSizes);
+
+    GLint uniformTypes[numUniforms];
+    glGetActiveUniformsiv(vertexProgram, numUniforms, uniformIndices, GL_UNIFORM_TYPE, uniformTypes);
+
+    // Create uniform buffer
+    GLuint uniformBuffer;
+    glCreateBuffers(1, &uniformBuffer);
+
+    // Notice the usage of BufferStorage and not BufferData.
+    // We'll be calling this buffer every frame,
+    // so we don't want the GPU to allocate a new memory for each call.
+    // While the location is constant, we can still update the buffer's contents
+    glNamedBufferStorage(uniformBuffer, uniformBlockSize, nullptr, GL_DYNAMIC_STORAGE_BIT);
+
+    glBindBufferBase(GL_UNIFORM_BUFFER, uniformBlockIndex, uniformBuffer);
+
+    glm::mat4 localMatrix(1.0f);
+    glm::mat4 worldMatrix = glm::rotate(localMatrix, glm::degrees(30.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+
     //glClearColor(1, 1, 0, 1);
     float clearColor[] = { 1, 1, 0, 1 };
+
     /* Loop until the user closes the window */
+    std::chrono::steady_clock::time_point prevTime = std::chrono::steady_clock::now();
     while (!glfwWindowShouldClose(window))
     {
+        std::chrono::steady_clock::time_point currTime = std::chrono::steady_clock::now();
+        std::chrono::duration<float> diff = 
+            std::chrono::duration_cast<std::chrono::milliseconds>(currTime - prevTime);
+        std::cout << diff.count() << std::endl;
+
+        float deltaTime = diff.count();
+
+        const float rotationSpeed = 100.0f;
+        static float rotationAmount = 0;
+        rotationAmount += rotationSpeed * deltaTime;
+        worldMatrix = glm::rotate(localMatrix, glm::radians(rotationAmount), glm::vec3(0.0f, 1.0f, 0.0f));
+
         /* Render here */
         //glClear(GL_COLOR_BUFFER_BIT);
         glClearBufferfv(GL_COLOR, 0, clearColor);
 
         glBindProgramPipeline(programPipeline);
-
+        
         glBindVertexArray(vertexLayout);
 
+        glNamedBufferSubData(uniformBuffer, 0, uniformBlockSize, glm::value_ptr(worldMatrix));
+        
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
         /* Swap front and back buffers */
@@ -319,9 +399,12 @@ int main(void)
 
         /* Poll for and process events */
         glfwPollEvents();
+
+        prevTime = currTime;
     }
 
     glDeleteVertexArrays(1, &vertexLayout);
+    glDeleteBuffers(1, &uniformBuffer);
     glDeleteBuffers(1, &vertexBuffer);
     glDeleteProgram(vertexProgram);
     glDeleteProgram(fragmentProgram);
