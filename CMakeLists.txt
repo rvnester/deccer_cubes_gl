@@ -80,7 +80,7 @@ FetchContent_MakeAvailable(glad)
 add_executable(deccer_cubes_GL main.cpp)
 target_compile_definitions(deccer_cubes_GL PRIVATE DECCER_CUBE_DEBUG_SWITCH)
 
-target_link_libraries(deccer_cubes_GL PRIVATE opengl32)
+#target_link_libraries(deccer_cubes_GL PRIVATE opengl32)
 #target_link_libraries(deccer_cubes_GL PRIVATE glew32)
 target_link_libraries(deccer_cubes_GL PRIVATE glad)
 target_link_libraries(deccer_cubes_GL PRIVATE glfw)

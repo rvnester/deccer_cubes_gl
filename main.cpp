@@ -1,13 +1,20 @@
 #include <iostream>
 #include <chrono>
+#include <unordered_map>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_access.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#pragma region GLFWCallbacks
+int gInputForward = 0;
+int gInputHorizontal = 0;
+int gInputVertical = 0;
 
+glm::vec3 gCameraPosition;
+
+#pragma region GLFWCallbacks
 
 void OnGlfwError(int error, const char* description)
 {
@@ -19,6 +26,48 @@ void OnKey(GLFWwindow* window, int key, int scanCode, int action, int mods)
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
+
+    if (key == GLFW_KEY_W && action == GLFW_PRESS)
+    {
+        gInputForward = -1;
+    }
+    else if (key == GLFW_KEY_S && action == GLFW_PRESS)
+    {
+        gInputForward = 1;
+    }
+    
+    if((key == GLFW_KEY_W || key == GLFW_KEY_S) && action == GLFW_RELEASE)
+    {
+        gInputForward = 0;
+    }
+
+    if (key == GLFW_KEY_A && action == GLFW_PRESS)
+    {
+        gInputHorizontal = -1;
+    }
+    else if (key == GLFW_KEY_D && action == GLFW_PRESS)
+    {
+        gInputHorizontal = 1;
+    }
+
+    if ((key == GLFW_KEY_A || key == GLFW_KEY_D) && action == GLFW_RELEASE)
+    {
+        gInputHorizontal = 0;
+    }
+
+    if (key == GLFW_KEY_E && action == GLFW_PRESS)
+    {
+        gInputVertical = 1;
+    }
+    else if (key == GLFW_KEY_Q && action == GLFW_PRESS)
+    {
+        gInputVertical = -1;
+    }
+
+    if ((key == GLFW_KEY_E || key == GLFW_KEY_Q) && action == GLFW_RELEASE)
+    {
+        gInputVertical = 0;
     }
 }
 
@@ -146,6 +195,7 @@ struct VertexPosColor
 std::string shader_vs =
 R"(
 #version 460 core
+//#extension GL_NV_uniform_buffer_std430_layout : enable
 
 layout (location = 0) in vec4 vVertex;
 layout (location = 1) in vec3 vColor;
@@ -162,10 +212,15 @@ uniform PerRenderable
     mat4 World;
 };
 
+uniform Matrices
+{
+    mat4 View;
+    mat4 Projection;
+};
 
 void main()
 {
-	gl_Position = World * vVertex;
+	gl_Position = Projection * View * World * vVertex;
     oColor = vColor;
 }
 )";
@@ -255,6 +310,7 @@ int main(void)
     vertices.push_back({ glm::vec4( 0.0f,  0.5f, 0.0f, 1.0f), glm::vec3(0.6f, 0.3f, 1.0f)});
     vertices.push_back({ glm::vec4(-0.5f, -0.5f, 0.0f, 1.0f), glm::vec3(1.0f, 0.3f, 0.1f)});
     vertices.push_back({ glm::vec4( 0.5f, -0.5f, 0.0f, 1.0f), glm::vec3(0.0f, 0.9f, 0.5f)});
+    
 
     // Create vertex buffer
     GLuint vertexBuffer;
@@ -308,7 +364,7 @@ int main(void)
     //
     
     // Query uniform buffer information
-    std::string uniformBlockName{ "PerRenderable" };
+    std::string uniformBlockName{ "PerRenderable"};
     GLuint uniformBlockIndex = glGetUniformBlockIndex(vertexProgram, uniformBlockName.c_str());
 
     GLint uniformBlockSize;
@@ -321,6 +377,7 @@ int main(void)
     // However in a real app we'd like to decide to which binding index the uniform block should be bound to.
     // This will allow us to set a globally shared uniform (aka constant) buffers and use then between shaders.
     // The following call doesn't change the binding index, but this is just here to show how it can be done.
+    uniformBlockBinding = 1;
     glUniformBlockBinding(vertexProgram, uniformBlockIndex, uniformBlockBinding);
 
 
@@ -358,10 +415,74 @@ int main(void)
     // While the location is constant, we can still update the buffer's contents
     glNamedBufferStorage(uniformBuffer, uniformBlockSize, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
-    glBindBufferBase(GL_UNIFORM_BUFFER, uniformBlockIndex, uniformBuffer);
+    glBindBufferBase(GL_UNIFORM_BUFFER, uniformBlockBinding, uniformBuffer);
 
     glm::mat4 localMatrix(1.0f);
     glm::mat4 worldMatrix = glm::rotate(localMatrix, glm::degrees(30.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+
+    // Camera
+    // We'll create a new uniform buffer specifically for view and project matrices
+    // Query matrices uniform block
+    std::string matricesUniformBlockName{ "Matrices" };
+    GLuint matricesUniformBlockIndex = glGetUniformBlockIndex(vertexProgram, matricesUniformBlockName.c_str());
+
+    GLint matricesUniformBlockSize;
+    glGetActiveUniformBlockiv(vertexProgram, matricesUniformBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &matricesUniformBlockSize);
+
+    GLint matricesUniformBlockBinding;
+    glGetActiveUniformBlockiv(vertexProgram, matricesUniformBlockIndex, GL_UNIFORM_BLOCK_BINDING, &matricesUniformBlockBinding);
+
+    // Don't forget to bind the uniform block index to the binding slot
+    matricesUniformBlockBinding = 0;
+    glUniformBlockBinding(vertexProgram, matricesUniformBlockIndex, matricesUniformBlockBinding);
+
+    // Query info about the uniforms in the matrices uniform block
+    char* matricesUniformNames[2] = { "View", "Projection" };
+    const int numMatricesUniforms = 2;
+    GLuint matricesUniformIndices[numMatricesUniforms];
+    glGetUniformIndices(vertexProgram, numMatricesUniforms, matricesUniformNames, matricesUniformIndices);
+
+    std::unordered_map<std::string, unsigned int> matricesNamesIndices;
+
+    for (int i = 0; i < numMatricesUniforms; i++)
+    {
+        std::string name{ matricesUniformNames[i] };
+        unsigned int index = matricesUniformIndices[i];
+        matricesNamesIndices[name] = index;
+    }
+
+    GLint matricesUniformOffsets[numMatricesUniforms];
+    glGetActiveUniformsiv(vertexProgram, numMatricesUniforms, matricesUniformIndices, GL_UNIFORM_OFFSET, matricesUniformOffsets);
+
+    GLint matricesUniformArrayStrides[numMatricesUniforms];
+    glGetActiveUniformsiv(vertexProgram, numMatricesUniforms, matricesUniformIndices, GL_UNIFORM_ARRAY_STRIDE, matricesUniformArrayStrides);
+
+    GLint matricesUniformMatrixStrides[numMatricesUniforms];
+    glGetActiveUniformsiv(vertexProgram, numMatricesUniforms, matricesUniformIndices, GL_UNIFORM_MATRIX_STRIDE, matricesUniformMatrixStrides);
+
+    GLint matricesUniformSizes[numMatricesUniforms]; 
+    glGetActiveUniformsiv(vertexProgram, numMatricesUniforms, matricesUniformIndices, GL_UNIFORM_SIZE, matricesUniformSizes);
+
+    GLint matricesUniformTypes[numMatricesUniforms];
+    glGetActiveUniformsiv(vertexProgram, numMatricesUniforms, matricesUniformIndices, GL_UNIFORM_TYPE, matricesUniformTypes);
+
+    // Create uniform buffer
+    GLuint matricesUniformBuffer;
+    glCreateBuffers(1, &matricesUniformBuffer);
+    glNamedBufferStorage(matricesUniformBuffer, matricesUniformBlockSize, nullptr, GL_DYNAMIC_STORAGE_BIT);
+
+    // Don't forget to bind the uniform buffer to the binding slot
+    glBindBufferBase(GL_UNIFORM_BUFFER, matricesUniformBlockBinding, matricesUniformBuffer);
+
+    // View matrix
+    //glm::vec3 camPosition(0.0f, 0.0f, -30.0f);
+    gCameraPosition = glm::vec3(0.0f, 0.0f, -30.0f);
+    glm::vec3 camTarget(0.0f, 0.0f, -1.0f);
+    glm::vec3 camUp(0.0f, 1.0f, 0.0f);
+    glm::mat4 viewMatrix = glm::lookAtRH(gCameraPosition, camTarget, camUp);
+
+    // Projection matrix
+    glm::mat4 projectionMatrix = glm::perspectiveRH_NO(glm::radians(60.0f), 640.0f / 480.0f, 0.1f, 1000.0f);
 
     //glClearColor(1, 1, 0, 1);
     float clearColor[] = { 1, 1, 0, 1 };
@@ -373,7 +494,6 @@ int main(void)
         std::chrono::steady_clock::time_point currTime = std::chrono::steady_clock::now();
         std::chrono::duration<float> diff = 
             std::chrono::duration_cast<std::chrono::milliseconds>(currTime - prevTime);
-        std::cout << diff.count() << std::endl;
 
         float deltaTime = diff.count();
 
@@ -381,6 +501,38 @@ int main(void)
         static float rotationAmount = 0;
         rotationAmount += rotationSpeed * deltaTime;
         worldMatrix = glm::rotate(localMatrix, glm::radians(rotationAmount), glm::vec3(0.0f, 1.0f, 0.0f));
+
+
+        std::cout << gInputForward << std::endl;
+        std::cout << gInputHorizontal << std::endl;
+
+        // Update Camera
+        const float cameraSpeed = 20.0f;
+
+        // Camera Forward Movement
+        glm::vec3 cameraForward = glm::column(viewMatrix, 2);
+        cameraForward = glm::normalize(cameraForward);
+        gCameraPosition += cameraForward * cameraSpeed * deltaTime * (float)gInputForward;
+
+        // Camera Horizontal Movement
+        glm::vec3 cameraRight = glm::column(viewMatrix, 0);
+        cameraRight = glm::normalize(cameraRight);
+        gCameraPosition += cameraRight * cameraSpeed * deltaTime * (float)gInputHorizontal;
+
+        // Camera Vertical Movement
+        glm::vec3 cameraUp = glm::column(viewMatrix, 1);
+        cameraUp = glm::normalize(cameraUp);
+        gCameraPosition += cameraUp * cameraSpeed * deltaTime * (float)gInputVertical;
+
+        // Camera
+
+        viewMatrix = glm::lookAtRH(gCameraPosition, gCameraPosition - cameraForward, camUp);
+
+        
+
+        std::cout << "P:" << gCameraPosition.x << " " << gCameraPosition.z << std::endl;
+        std::cout << "F:" << cameraForward.x << " " << cameraForward.y << " " << cameraForward.z << std::endl;
+        std::cout << "R:" << cameraRight.x << " " << cameraRight.y << " " << cameraRight.z << std::endl;
 
         /* Render here */
         //glClear(GL_COLOR_BUFFER_BIT);
@@ -390,7 +542,22 @@ int main(void)
         
         glBindVertexArray(vertexLayout);
 
+        worldMatrix = glm::scale(worldMatrix, glm::vec3(10, 10, 1));
         glNamedBufferSubData(uniformBuffer, 0, uniformBlockSize, glm::value_ptr(worldMatrix));
+
+        // It's probably slower to update one uniform at a time instead of an entire buffer in one go
+        // but it's fine for now, it's part of a learing process anyway
+        //viewMatrix = glm::column(viewMatrix, 3, glm::vec4(gCameraPosition, 1.0f));
+        unsigned int viewMatrixIndex = matricesNamesIndices["View"];
+        glNamedBufferSubData(matricesUniformBuffer,
+        // The offsets come in the wrong order for some reason
+            matricesUniformOffsets[0], matricesUniformSizes[viewMatrixIndex] * sizeof(glm::mat4),
+            glm::value_ptr(viewMatrix));
+
+        unsigned int projectionMatrixIndex = matricesNamesIndices["Projection"];
+        glNamedBufferSubData(matricesUniformBuffer,
+            matricesUniformOffsets[1], matricesUniformSizes[projectionMatrixIndex] * sizeof(glm::mat4),
+            glm::value_ptr(projectionMatrix));
         
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
