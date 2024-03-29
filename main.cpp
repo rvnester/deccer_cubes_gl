@@ -562,7 +562,7 @@ int main(void)
         // Camera Forward Movement
         glm::vec3 cameraForward = forwardVector;
         //cameraForward = cameraRotationY * cameraForward;
-        cameraForward = cameraRotationY * cameraRotationX * cameraRotationY * cameraForward;
+        cameraForward = cameraRotationY * cameraRotationX * cameraForward;
         gCameraPosition += cameraForward * cameraSpeed * deltaTime * (float)gInputForward;
 
         // Camera Horizontal Movement
