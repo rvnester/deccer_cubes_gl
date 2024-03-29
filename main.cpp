@@ -104,18 +104,18 @@ void OnMouseButton(GLFWwindow* window, int button, int action, int mods)
         {
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
             gInputRightMouseDown = true;
-            gInputPrevMouseX = 0.0f;
-            gInputPrevMouseY = 0.0f;
+
+            double mousePosX, mousePosY;
+            glfwGetCursorPos(window, &mousePosX, &mousePosY);
+            gInputPrevMouseX = mousePosX;
+            gInputPrevMouseY = mousePosY;
         }
         if (action == GLFW_RELEASE)
         {
-            gInputPrevMouseX = 0.0f;
-            gInputPrevMouseY = 0.0f;
+            gInputDeltaMouseX = 0.0f;
+            gInputDeltaMouseY = 0.0f;
             gInputRightMouseDown = false;
-            int width, height;
-            glfwGetWindowSize(window, &width, &height);
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            //glfwSetCursorPos(window, width / 2, height / 2);
         }
     }
 }
@@ -519,8 +519,8 @@ int main(void)
 
     // View matrix
     //glm::vec3 camPosition(0.0f, 0.0f, -30.0f);
-    gCameraPosition = glm::vec3(0.0f, 0.0f, -30.0f);
-    glm::vec3 camTarget(0.0f, 0.0f, -1.0f);
+    gCameraPosition = glm::vec3(0.0f, 0.0f, 30.0f);
+    glm::vec3 camTarget(0.0f, 0.0f, 1.0f);
     glm::vec3 camUp(0.0f, 1.0f, 0.0f);
     glm::mat4 viewMatrix = glm::lookAtRH(gCameraPosition, camTarget, camUp);
 
@@ -540,74 +540,49 @@ int main(void)
 
         float deltaTime = diff.count();
 
-        // Update Triangles
-        const float rotationSpeed = 100.0f;
-        static float rotationAmount = 0;
-
-        rotationAmount += rotationSpeed * deltaTime;
-        worldMatrix = glm::rotate(localMatrix, glm::radians(rotationAmount), glm::vec3(0.0f, 1.0f, 0.0f));
-
         // Update Camera
         const float cameraSpeed = 20.0f;
-        const float cameraRotationSpeed = 1.0f;
+        const float cameraRotationSpeed = 20.0f;
         static float cameraYawAmount = 0.0f;
+        static float cameraPitchAmount = 0.0f;
         
         const glm::vec3 rightVector(1.0f, 0.0f, 0.0f);
         const glm::vec3 upVector(0.0f, 1.0f, 0.0f);
-        const glm::vec3 forwardVector(0.0f, 0.0f, -1.0f);
+        const glm::vec3 forwardVector(0.0f, 0.0f, 1.0f);
 
-
-        // Camera Y Rotation
-        if (glfwGetMouseButton(window, 1) == GLFW_RELEASE)
-        {
-            gInputDeltaMouseY = 0;
-        }
+        // Camera Y Rotation, Yaw
         cameraYawAmount += cameraRotationSpeed * deltaTime * gInputDeltaMouseX;
-        //std::cout << "yaw " << gInputDeltaMouseX << std::endl;
-        //glm::mat4 cameraRotationY  = glm::rotate(glm::mat4(1.0f), glm::radians(-cameraYawAmount), upVector);
+        cameraPitchAmount += cameraRotationSpeed * deltaTime * gInputDeltaMouseY;
+
+        std::cout << "cameraYawAmount " << gInputDeltaMouseY << std::endl;
+
         glm::quat cameraRotationY = glm::angleAxis(glm::radians(-cameraYawAmount), upVector);
-        //glm::vec3 cameraForward = glm::column(viewMatrix, 2);
-        //cameraForward = glm::normalize(cameraForward);
-        //cameraForward = cameraRotationY * glm::vec4(cameraForward, 1.0f);
-        //cameraForward = glm::normalize(cameraForward);
-        //viewMatrix = viewMatrix * cameraRotationY;
+        glm::quat cameraRotationX = glm::angleAxis(glm::radians(-cameraPitchAmount), rightVector);
 
         // Camera Forward Movement
         glm::vec3 cameraForward = forwardVector;
-        //cameraForward = glm::normalize(cameraForward);
-        cameraForward = cameraRotationY * cameraForward;
+        //cameraForward = cameraRotationY * cameraForward;
+        cameraForward = cameraRotationY * cameraRotationX * cameraRotationY * cameraForward;
         gCameraPosition += cameraForward * cameraSpeed * deltaTime * (float)gInputForward;
 
         // Camera Horizontal Movement
         glm::vec3 cameraRight = rightVector;
-        //cameraRight = glm::normalize(cameraRight);
+        cameraRight = cameraRotationY * cameraRight;
         gCameraPosition += cameraRight * cameraSpeed * deltaTime * (float)gInputHorizontal;
 
         // Camera Vertical Movement
-        glm::vec3 cameraUp = glm::column(viewMatrix, 1);
-        cameraUp = glm::normalize(cameraUp);
+        glm::vec3 cameraUp = upVector;
         gCameraPosition += cameraUp * cameraSpeed * deltaTime * (float)gInputVertical;
 
         // Camera
         viewMatrix = glm::lookAtRH(gCameraPosition, gCameraPosition - cameraForward, camUp);
-
-        /* Render here */
-        //glClear(GL_COLOR_BUFFER_BIT);
-        glClearBufferfv(GL_COLOR, 0, clearColor);
-
-        glBindProgramPipeline(programPipeline);
-        
-        glBindVertexArray(vertexLayout);
-
-        worldMatrix = glm::scale(worldMatrix, glm::vec3(10, 10, 1));
-        glNamedBufferSubData(uniformBuffer, 0, uniformBlockSize, glm::value_ptr(worldMatrix));
 
         // It's probably slower to update one uniform at a time instead of an entire buffer in one go
         // but it's fine for now, it's part of a learing process anyway
         //viewMatrix = glm::column(viewMatrix, 3, glm::vec4(gCameraPosition, 1.0f));
         unsigned int viewMatrixIndex = matricesNamesIndices["View"];
         glNamedBufferSubData(matricesUniformBuffer,
-        // The offsets come in the wrong order for some reason
+            // The offsets come in the wrong order for some reason
             matricesUniformOffsets[0], matricesUniformSizes[viewMatrixIndex] * sizeof(glm::mat4),
             glm::value_ptr(viewMatrix));
 
@@ -615,8 +590,38 @@ int main(void)
         glNamedBufferSubData(matricesUniformBuffer,
             matricesUniformOffsets[1], matricesUniformSizes[projectionMatrixIndex] * sizeof(glm::mat4),
             glm::value_ptr(projectionMatrix));
+
+        /* Render here */
+        //glClear(GL_COLOR_BUFFER_BIT);
+        glClearBufferfv(GL_COLOR, 0, clearColor);
         
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        // Triangles
+        glBindProgramPipeline(programPipeline);
+        glBindVertexArray(vertexLayout);
+        
+        for (int i = 0; i < 20; i++)
+        {
+            const float rotationSpeed = 20.f;
+            static float rotationAmount = 0;
+
+            rotationAmount += rotationSpeed * deltaTime;
+            worldMatrix = glm::rotate(localMatrix, glm::radians(rotationAmount), glm::vec3(0.0f, 1.0f, 0.0f));
+
+            worldMatrix = glm::scale(worldMatrix, glm::vec3(10, 10, 1));
+            
+            const float radius = 30.0f;
+            glm::vec3 position(radius, 0.0f, 0.0f);
+            glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
+            glm::mat4 rotatedAngle = glm::rotate(glm::mat4(1.0f), glm::radians(360.0f / 20 * i), upVector);
+
+            worldMatrix = rotatedAngle * translation * worldMatrix;
+            
+            glNamedBufferSubData(uniformBuffer, 0, uniformBlockSize, glm::value_ptr(worldMatrix));
+
+            glDrawArrays(GL_TRIANGLES, 0, 3);
+        }
+
+        //glDrawArrays(GL_TRIANGLES, 0, 3);
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
