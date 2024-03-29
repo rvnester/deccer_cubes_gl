@@ -553,6 +553,14 @@ int main(void)
         // Camera Y Rotation, Yaw
         cameraYawAmount += cameraRotationSpeed * deltaTime * gInputDeltaMouseX;
         cameraPitchAmount += cameraRotationSpeed * deltaTime * gInputDeltaMouseY;
+        if (cameraPitchAmount > 89.0f)
+        {
+            cameraPitchAmount = 89.0f;
+        }
+        else if (cameraPitchAmount < -89.0f)
+        {
+            cameraPitchAmount = -89.0f;
+        }
 
         std::cout << "cameraYawAmount " << gInputDeltaMouseY << std::endl;
 
@@ -572,6 +580,7 @@ int main(void)
 
         // Camera Vertical Movement
         glm::vec3 cameraUp = upVector;
+        cameraUp = cameraRotationY * cameraRotationX * cameraUp;
         gCameraPosition += cameraUp * cameraSpeed * deltaTime * (float)gInputVertical;
 
         // Camera
