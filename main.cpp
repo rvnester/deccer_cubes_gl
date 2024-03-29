@@ -6,13 +6,26 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/matrix_access.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 int gInputForward = 0;
 int gInputHorizontal = 0;
 int gInputVertical = 0;
 
+bool gInputRightMouseDown = false;
+double gInputPrevMouseX = 0.0;
+double gInputPrevMouseY = 0.0;
+double gInputDeltaMouseX = 0.0;
+double gInputDeltaMouseY = 0.0;
+
 glm::vec3 gCameraPosition;
+
+std::ostream& operator<<(std::ostream& output, const glm::vec3& vector)
+{
+    output << "x:" << vector.x << " y:" << vector.y << " z:" << vector.z;
+    return output;
+}
 
 #pragma region GLFWCallbacks
 
@@ -81,14 +94,44 @@ void OnCharModsKey(GLFWwindow* window, unsigned int codepoint, int mods)
 
 }
 
+bool gFirstTimeMouseDrag = false;
+
 void OnMouseButton(GLFWwindow* window, int button, int action, int mods)
 {
-
+    if (button == 1)
+    {
+        if (action == GLFW_PRESS)
+        {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            gInputRightMouseDown = true;
+            gInputPrevMouseX = 0.0f;
+            gInputPrevMouseY = 0.0f;
+        }
+        if (action == GLFW_RELEASE)
+        {
+            gInputPrevMouseX = 0.0f;
+            gInputPrevMouseY = 0.0f;
+            gInputRightMouseDown = false;
+            int width, height;
+            glfwGetWindowSize(window, &width, &height);
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            //glfwSetCursorPos(window, width / 2, height / 2);
+        }
+    }
 }
 
 void OnMouseMove(GLFWwindow* window, double x, double y)
 {
+    if (!gInputRightMouseDown)
+    {
+        return;
+    }
+    
+    gInputDeltaMouseX = x - gInputPrevMouseX;
+    gInputDeltaMouseY = y - gInputPrevMouseY;
 
+    gInputPrevMouseX = x;
+    gInputPrevMouseY = y;
 }
 
 void OnMouseScroll(GLFWwindow* window, double xOffset, double yOffset)
@@ -143,7 +186,7 @@ void OnWindowMaximize(GLFWwindow* window, int maxmized)
 
 void OnFramebufferResize(GLFWwindow* window, int width, int height)
 {
-
+    glViewport(0, 0, width, height);
 }
 
 void OnWindowContentScale(GLFWwindow* window, float xScale, float yScale)
@@ -207,7 +250,7 @@ out gl_PerVertex // must be used with seperable shader program
     vec4 gl_Position;
 };
 
-uniform PerRenderable
+layout(std140) uniform PerRenderable
 {
     mat4 World;
 };
@@ -497,26 +540,47 @@ int main(void)
 
         float deltaTime = diff.count();
 
+        // Update Triangles
         const float rotationSpeed = 100.0f;
         static float rotationAmount = 0;
+
         rotationAmount += rotationSpeed * deltaTime;
         worldMatrix = glm::rotate(localMatrix, glm::radians(rotationAmount), glm::vec3(0.0f, 1.0f, 0.0f));
 
-
-        std::cout << gInputForward << std::endl;
-        std::cout << gInputHorizontal << std::endl;
-
         // Update Camera
         const float cameraSpeed = 20.0f;
+        const float cameraRotationSpeed = 1.0f;
+        static float cameraYawAmount = 0.0f;
+        
+        const glm::vec3 rightVector(1.0f, 0.0f, 0.0f);
+        const glm::vec3 upVector(0.0f, 1.0f, 0.0f);
+        const glm::vec3 forwardVector(0.0f, 0.0f, -1.0f);
+
+
+        // Camera Y Rotation
+        if (glfwGetMouseButton(window, 1) == GLFW_RELEASE)
+        {
+            gInputDeltaMouseY = 0;
+        }
+        cameraYawAmount += cameraRotationSpeed * deltaTime * gInputDeltaMouseX;
+        //std::cout << "yaw " << gInputDeltaMouseX << std::endl;
+        //glm::mat4 cameraRotationY  = glm::rotate(glm::mat4(1.0f), glm::radians(-cameraYawAmount), upVector);
+        glm::quat cameraRotationY = glm::angleAxis(glm::radians(-cameraYawAmount), upVector);
+        //glm::vec3 cameraForward = glm::column(viewMatrix, 2);
+        //cameraForward = glm::normalize(cameraForward);
+        //cameraForward = cameraRotationY * glm::vec4(cameraForward, 1.0f);
+        //cameraForward = glm::normalize(cameraForward);
+        //viewMatrix = viewMatrix * cameraRotationY;
 
         // Camera Forward Movement
-        glm::vec3 cameraForward = glm::column(viewMatrix, 2);
-        cameraForward = glm::normalize(cameraForward);
+        glm::vec3 cameraForward = forwardVector;
+        //cameraForward = glm::normalize(cameraForward);
+        cameraForward = cameraRotationY * cameraForward;
         gCameraPosition += cameraForward * cameraSpeed * deltaTime * (float)gInputForward;
 
         // Camera Horizontal Movement
-        glm::vec3 cameraRight = glm::column(viewMatrix, 0);
-        cameraRight = glm::normalize(cameraRight);
+        glm::vec3 cameraRight = rightVector;
+        //cameraRight = glm::normalize(cameraRight);
         gCameraPosition += cameraRight * cameraSpeed * deltaTime * (float)gInputHorizontal;
 
         // Camera Vertical Movement
@@ -525,14 +589,7 @@ int main(void)
         gCameraPosition += cameraUp * cameraSpeed * deltaTime * (float)gInputVertical;
 
         // Camera
-
         viewMatrix = glm::lookAtRH(gCameraPosition, gCameraPosition - cameraForward, camUp);
-
-        
-
-        std::cout << "P:" << gCameraPosition.x << " " << gCameraPosition.z << std::endl;
-        std::cout << "F:" << cameraForward.x << " " << cameraForward.y << " " << cameraForward.z << std::endl;
-        std::cout << "R:" << cameraRight.x << " " << cameraRight.y << " " << cameraRight.z << std::endl;
 
         /* Render here */
         //glClear(GL_COLOR_BUFFER_BIT);
@@ -568,6 +625,7 @@ int main(void)
         glfwPollEvents();
 
         prevTime = currTime;
+        glfwSetTime(0);
     }
 
     glDeleteVertexArrays(1, &vertexLayout);
