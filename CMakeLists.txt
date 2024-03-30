@@ -76,9 +76,17 @@ FetchContent_MakeAvailable(glad)
 #	GLAD_API "gl=4.5"
 #)
 
+FetchContent_Declare(
+	stb_image
+	GIT_REPOSITORY https://github.com/nothings/stb.git
+)
+FetchContent_MakeAvailable(stb_image)
+
 
 add_executable(deccer_cubes_GL main.cpp)
 target_compile_definitions(deccer_cubes_GL PRIVATE DECCER_CUBE_DEBUG_SWITCH)
+
+target_include_directories(deccer_cubes_GL PRIVATE ${stb_image_SOURCE_DIR})
 
 #target_link_libraries(deccer_cubes_GL PRIVATE opengl32)
 #target_link_libraries(deccer_cubes_GL PRIVATE glew32)

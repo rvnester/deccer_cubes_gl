@@ -8,6 +8,7 @@
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <stb_image.h>
 
 int gInputForward = 0;
 int gInputHorizontal = 0;
@@ -586,9 +587,8 @@ int main(void)
         // Camera
         viewMatrix = glm::lookAtRH(gCameraPosition, gCameraPosition - cameraForward, camUp);
 
-        // It's probably slower to update one uniform at a time instead of an entire buffer in one go
-        // but it's fine for now, it's part of a learing process anyway
-        //viewMatrix = glm::column(viewMatrix, 3, glm::vec4(gCameraPosition, 1.0f));
+
+        // Update Matrices Uniform Buffer
         unsigned int viewMatrixIndex = matricesNamesIndices["View"];
         glNamedBufferSubData(matricesUniformBuffer,
             // The offsets come in the wrong order for some reason
