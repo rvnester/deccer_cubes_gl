@@ -667,14 +667,11 @@ int main(void)
             glm::value_ptr(projectionMatrix));
 
         /* Render here */
-        //glClear(GL_COLOR_BUFFER_BIT);
         glClearBufferfv(GL_COLOR, 0, clearColor);
         
         // Triangles
         glBindProgramPipeline(programPipeline);
         glBindVertexArray(vertexLayout);
-
-        //glActiveTexture(GL_TEXTURE0);
 
         for (int i = 0; i < 20; i++)
         {
