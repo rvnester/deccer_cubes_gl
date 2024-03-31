@@ -8,6 +8,8 @@
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
+#define STB_IMAGE_IMPLEMENTATION    
 #include <stb_image.h>
 
 int gInputForward = 0;
@@ -234,6 +236,13 @@ struct VertexPosColor
     glm::vec3 color;
 };
 
+struct VertexPosColorUv
+{
+    glm::vec4 pos;
+    glm::vec3 color;
+    glm::vec2 uv;
+};
+
 #pragma region Shaders
 
 std::string shader_vs =
@@ -243,8 +252,10 @@ R"(
 
 layout (location = 0) in vec4 vVertex;
 layout (location = 1) in vec3 vColor;
+layout (location = 3) in vec2 vUV;
 
 layout (location = 0) out vec3 oColor;
+layout (location = 1) out vec2 oUV;
 
 out gl_PerVertex // must be used with seperable shader program
 {
@@ -266,6 +277,7 @@ void main()
 {
 	gl_Position = Projection * View * World * vVertex;
     oColor = vColor;
+    oUV = vUV;
 }
 )";
 
@@ -274,12 +286,16 @@ R"(
 #version 460 core
 
 layout (location = 0) in vec3 iColor;
+layout (location = 1) in vec2 iUV;
 
 layout (location = 0) out vec4 vFragColor;
+
+uniform sampler2D sampler;
 
 void main()
 {
 	vFragColor = vec4(iColor, 1.0);
+    vFragColor = texture(sampler, iUV);
 }
 )";
 
@@ -350,10 +366,10 @@ int main(void)
     glViewport(0, 0, backBufferWidth, backBufferHeight);
 
     // Define vertrices
-    std::vector<VertexPosColor> vertices;
-    vertices.push_back({ glm::vec4( 0.0f,  0.5f, 0.0f, 1.0f), glm::vec3(0.6f, 0.3f, 1.0f)});
-    vertices.push_back({ glm::vec4(-0.5f, -0.5f, 0.0f, 1.0f), glm::vec3(1.0f, 0.3f, 0.1f)});
-    vertices.push_back({ glm::vec4( 0.5f, -0.5f, 0.0f, 1.0f), glm::vec3(0.0f, 0.9f, 0.5f)});
+    std::vector<VertexPosColorUv> vertices;
+    vertices.push_back({ glm::vec4( 0.0f,  0.5f, 0.0f, 1.0f), glm::vec3(0.6f, 0.3f, 1.0f), glm::vec2(0.5f, 1.0f)});
+    vertices.push_back({ glm::vec4(-0.5f, -0.5f, 0.0f, 1.0f), glm::vec3(1.0f, 0.3f, 0.1f), glm::vec2(0.0f, 0.0f)});
+    vertices.push_back({ glm::vec4( 0.5f, -0.5f, 0.0f, 1.0f), glm::vec3(0.0f, 0.9f, 0.5f), glm::vec2(1.0f, 0.0f)});
     
 
     // Create vertex buffer
@@ -379,12 +395,26 @@ int main(void)
 
     // Define the vertex layout for color data
     int colorLocation = 1;
-    glVertexArrayAttribFormat(vertexLayout, colorLocation, 3, GL_FLOAT, GL_FALSE, offsetof(VertexPosColor, color));
+    glVertexArrayAttribFormat(vertexLayout, colorLocation, 3, GL_FLOAT, GL_FALSE, offsetof(VertexPosColorUv, color));
     glVertexArrayAttribBinding(vertexLayout, colorLocation, 0); // (location = colorLocation, binding = 0)
     glEnableVertexArrayAttrib(vertexLayout, colorLocation); // Don't forget to enable the attribute
 
+    // Define the vertex layout for uv coordinates
+    int uvLocation = 2;
+    glVertexArrayAttribFormat(vertexLayout, uvLocation, 2, GL_FLOAT, GL_FALSE, offsetof(VertexPosColorUv, uv));
+    glVertexArrayAttribBinding(vertexLayout, uvLocation, 0);
+    glDisableVertexArrayAttrib(vertexLayout, uvLocation);
+
     // Bind vertex buffer to a vertex layout (aka use a buffer view with vertex buffer)
     glVertexArrayVertexBuffer(vertexLayout, 0, vertexBuffer, 0, sizeof(VertexPosColor));
+
+    
+    // Create Texture
+    char const* filename = "../assets/marioimage.jpg";
+    int width, height;
+    int channelsInFile;
+    const int desiredChannels = 4;
+    stbi_uc* imageData = stbi_load(filename, &width, &height, &channelsInFile, desiredChannels);
 
     // Vertex Stage
     const GLchar* vertexShaderSource[] = { shader_vs.c_str() };
@@ -642,6 +672,7 @@ int main(void)
         glfwSetTime(0);
     }
 
+    
     glDeleteVertexArrays(1, &vertexLayout);
     glDeleteBuffers(1, &uniformBuffer);
     glDeleteBuffers(1, &vertexBuffer);

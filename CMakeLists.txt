@@ -86,6 +86,7 @@ FetchContent_MakeAvailable(stb_image)
 add_executable(deccer_cubes_GL main.cpp)
 target_compile_definitions(deccer_cubes_GL PRIVATE DECCER_CUBE_DEBUG_SWITCH)
 
+#target_include_directories(deccer_cubes_GL PRIVATE ${CMAKE_SOURCE_DIR}/assets)
 target_include_directories(deccer_cubes_GL PRIVATE ${stb_image_SOURCE_DIR})
 
 #target_link_libraries(deccer_cubes_GL PRIVATE opengl32)
