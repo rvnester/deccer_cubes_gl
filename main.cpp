@@ -416,6 +416,22 @@ int main(void)
     const int desiredChannels = 4;
     stbi_uc* imageData = stbi_load(filename, &width, &height, &channelsInFile, desiredChannels);
 
+    GLuint texture;
+    glCreateTextures(GL_TEXTURE_2D, 1, &texture);
+
+    glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
+    glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, imageData);
+
+    glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    // Remember to bind the texture to texture unit
+    glBindTextureUnit(0, texture);
+
     // Vertex Stage
     const GLchar* vertexShaderSource[] = { shader_vs.c_str() };
     GLuint vertexProgram = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, vertexShaderSource);
@@ -672,7 +688,8 @@ int main(void)
         glfwSetTime(0);
     }
 
-    
+
+    glDeleteTextures(1, &texture);
     glDeleteVertexArrays(1, &vertexLayout);
     glDeleteBuffers(1, &uniformBuffer);
     glDeleteBuffers(1, &vertexBuffer);
