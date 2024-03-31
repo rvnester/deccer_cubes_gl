@@ -226,7 +226,7 @@ void APIENTRY OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum 
     GLsizei length, const GLchar* message, const void* userParam)
 {
     int x = 1;
-    std::cout << id << "\n";
+    std::cout << message << "\n";
 }
 #endif
 
@@ -252,7 +252,7 @@ R"(
 
 layout (location = 0) in vec4 vVertex;
 layout (location = 1) in vec3 vColor;
-layout (location = 3) in vec2 vUV;
+layout (location = 2) in vec2 vUV;
 
 layout (location = 0) out vec3 oColor;
 layout (location = 1) out vec2 oUV;
@@ -290,7 +290,7 @@ layout (location = 1) in vec2 iUV;
 
 layout (location = 0) out vec4 vFragColor;
 
-uniform sampler2D sampler;
+layout (location = 0) uniform sampler2D sampler;
 
 void main()
 {
@@ -358,6 +358,7 @@ int main(void)
     }
 
 #ifdef DECCER_CUBE_DEBUG_SWITCH
+    glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(OpenGLDebugCallback, "My Data");
 #endif
 
@@ -381,7 +382,7 @@ int main(void)
     // with each call.
     // An idea for a good use of BufferStorage is as a Dst of upload buffer.
     glNamedBufferData(vertexBuffer,
-        vertices.size() * sizeof(VertexPosColor), vertices.data(), GL_STATIC_DRAW);
+        vertices.size() * sizeof(VertexPosColorUv), vertices.data(), GL_STATIC_DRAW);
 
     // Create vertex layout
     GLuint vertexLayout;
@@ -403,34 +404,55 @@ int main(void)
     int uvLocation = 2;
     glVertexArrayAttribFormat(vertexLayout, uvLocation, 2, GL_FLOAT, GL_FALSE, offsetof(VertexPosColorUv, uv));
     glVertexArrayAttribBinding(vertexLayout, uvLocation, 0);
-    glDisableVertexArrayAttrib(vertexLayout, uvLocation);
+    glEnableVertexArrayAttrib(vertexLayout, uvLocation);
 
     // Bind vertex buffer to a vertex layout (aka use a buffer view with vertex buffer)
-    glVertexArrayVertexBuffer(vertexLayout, 0, vertexBuffer, 0, sizeof(VertexPosColor));
+    glVertexArrayVertexBuffer(vertexLayout, 0, vertexBuffer, 0, sizeof(VertexPosColorUv));
 
     
-    // Create Texture
+    // Load Image Data
     char const* filename = "../assets/marioimage.jpg";
     int width, height;
     int channelsInFile;
-    const int desiredChannels = 4;
+    const int desiredChannels = 0;
     stbi_uc* imageData = stbi_load(filename, &width, &height, &channelsInFile, desiredChannels);
 
+    // Create Texture
     GLuint texture;
     glCreateTextures(GL_TEXTURE_2D, 1, &texture);
 
-    glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
-    glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, imageData);
+    glTextureStorage2D(texture, 1, GL_RGB16, width, height);
+    glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, (void*)imageData);
+
+    stbi_image_free(imageData);
 
     glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(texture, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTextureParameteri(texture, GL_TEXTURE_WRAP_R, GL_REPEAT);
 
     // Remember to bind the texture to texture unit
     glBindTextureUnit(0, texture);
+
+    // Texture Sampler
+    // We don't have to create samplers, we already defined how we want to texture to be sampled
+    // with the GlTextureParameteri functions above. However, by creating different samplers we can
+    // seperate the texture from how it's samples by rebinding with different samplers.
+    // Think of it like the seperation between a vertex buffer (the texture) and a vertex layout (the sampler).
+    GLuint sampler;
+    glCreateSamplers(1, &sampler);
+
+    glSamplerParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glSamplerParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glSamplerParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glSamplerParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glSamplerParameteri(texture, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    // Don't forget to bind the sampler to a texture unit
+    glBindSampler(0, sampler);
 
     // Vertex Stage
     const GLchar* vertexShaderSource[] = { shader_vs.c_str() };
@@ -609,8 +631,6 @@ int main(void)
             cameraPitchAmount = -89.0f;
         }
 
-        std::cout << "cameraYawAmount " << gInputDeltaMouseY << std::endl;
-
         glm::quat cameraRotationY = glm::angleAxis(glm::radians(-cameraYawAmount), upVector);
         glm::quat cameraRotationX = glm::angleAxis(glm::radians(-cameraPitchAmount), rightVector);
 
@@ -653,7 +673,9 @@ int main(void)
         // Triangles
         glBindProgramPipeline(programPipeline);
         glBindVertexArray(vertexLayout);
-        
+
+        //glActiveTexture(GL_TEXTURE0);
+
         for (int i = 0; i < 20; i++)
         {
             const float rotationSpeed = 20.f;
@@ -688,7 +710,7 @@ int main(void)
         glfwSetTime(0);
     }
 
-
+    glDeleteSamplers(1, &sampler);
     glDeleteTextures(1, &texture);
     glDeleteVertexArrays(1, &vertexLayout);
     glDeleteBuffers(1, &uniformBuffer);
