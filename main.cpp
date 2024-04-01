@@ -454,8 +454,6 @@ int main(void)
     // Don't forget to bind the sampler to a texture unit
     glBindSampler(0, sampler);
 
-
-
     // Vertex Stage
     const GLchar* vertexShaderSource[] = { shader_vs.c_str() };
     GLuint vertexProgram = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, vertexShaderSource);
@@ -474,6 +472,7 @@ int main(void)
     glUseProgramStages(programPipeline, GL_VERTEX_SHADER_BIT, vertexProgram);
     glUseProgramStages(programPipeline, GL_FRAGMENT_SHADER_BIT, fragmentProgram);
 
+    
     // Uniform buffer for the PerRenderable uniform block
     //
     
