@@ -243,6 +243,43 @@ struct VertexPosColorUv
     glm::vec2 uv;
 };
 
+//void whatever()
+//{
+//    const float rotationSpeed = 20.f; // uniform float rotationSpeed = 20.0f;
+//    static float rotationAmount = 0; // uniform float rotationAmount = 0;
+//
+//    rotationAmount += rotationSpeed * deltaTime; // uniform float deltaTime;
+//    worldMatrix = glm::rotate(localMatrix, glm::radians(rotationAmount), glm::vec3(0.0f, 1.0f, 0.0f));
+//
+//    worldMatrix = glm::scale(worldMatrix, glm::vec3(10, 10, 1)); // Do this once from the cpu side
+//
+//    const float radius = 30.0f; // uniform float radius = 30.0f
+//    {
+//        glm::vec3 position(radius, 0.0f, 0.0f);
+//        glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
+//
+//        // create a matrix instead
+//        mat4 translation(1.0f);
+//        translation[3] = vec4(radius, 0.0f, 0.0f, 1.0f);
+//    }
+//
+//    {
+//        glm::mat4 rotatedAngle = glm::rotate(glm::mat4(1.0f), glm::radians(360.0f / 20 * i), upVector);
+//
+//        float cosAngle = cos(rotationAmount);
+//        float sinAngle = sin(rotationAmount);
+//        mat4 rotation(1.0);
+//        rotation[0] = vec4(cosAngle, 0.0f, sinAngle, 0.0);
+//        rotation[2] = vec4(-sinAngle, 0.0f, cosAngle, 0.0);
+//    }
+//
+//    worldMatrix = rotatedAngle * translation * worldMatrix;
+//
+//    glNamedBufferSubData(uniformBuffer, 0, uniformBlockSize, glm::value_ptr(worldMatrix));
+//
+//    glDrawArrays(GL_TRIANGLES, 0, 3);
+//}
+
 #pragma region Shaders
 
 std::string shader_vs =
@@ -273,11 +310,43 @@ uniform Matrices
     mat4 Projection;
 };
 
+uniform float deltaTime;
+
 void main()
 {
-	gl_Position = Projection * View * World * vVertex;
+    float rotationSpeed = 20.0;
+    float rotationAmount = 0.0;
+    
+    rotationAmount = rotationSpeed * deltaTime + gl_InstanceID;
+
+    float cosAngle = cos(rotationAmount);
+    float sinAngle = sin(rotationAmount);
+    
+    mat4 localRotation;
+    localRotation[0] = vec4(cosAngle, 0.0, sinAngle, 0.0);
+    localRotation[1] = vec4(0.0, 1.0, 0.0, 0.0);
+    localRotation[2] = vec4(-sinAngle, 0.0, cosAngle, 0.0);
+    localRotation[3] = vec4(0.0, 0.0, 0.0, 1.0);
+    
+    mat4 translationMatrix;
+    translationMatrix[0] = vec4(1.0, 0.0, 0.0, 0.0);
+    translationMatrix[1] = vec4(0.0, 1.0, 0.0, 0.0);
+    translationMatrix[2] = vec4(0.0, 0.0, 1.0, 0.0);
+    translationMatrix[3] = vec4(20.0, 0.0, 0.0, 1.0);
+
+    mat4 globalRotation;
+    globalRotation[0] = vec4(cosAngle, 0.0, sinAngle, 0.0);
+    globalRotation[1] = vec4(0.0, 1.0, 0.0, 0.0);
+    globalRotation[2] = vec4(-sinAngle, 0.0, cosAngle, 0.0);
+    globalRotation[3] = vec4(0.0, 0.0, 0.0, 1.0);
+    
+    mat4 worldMatrix = globalRotation * translationMatrix * localRotation * World;
+    
+	//gl_Position = Projection * View * localRotation * World * vVertex;
+	gl_Position = Projection * View * worldMatrix * vVertex;
     oColor = vColor;
     oUV = vUV;
+    //int index = gl_InstanceID;
 }
 )";
 
@@ -531,7 +600,7 @@ int main(void)
     glBindBufferBase(GL_UNIFORM_BUFFER, uniformBlockBinding, uniformBuffer);
 
     glm::mat4 localMatrix(1.0f);
-    glm::mat4 worldMatrix = glm::rotate(localMatrix, glm::degrees(30.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    //glm::mat4 worldMatrix = glm::rotate(localMatrix, glm::degrees(30.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
     // Camera
     // We'll create a new uniform buffer specifically for view and project matrices
@@ -597,6 +666,8 @@ int main(void)
     // Projection matrix
     glm::mat4 projectionMatrix = glm::perspectiveRH_NO(glm::radians(60.0f), 640.0f / 480.0f, 0.1f, 1000.0f);
 
+    GLint deltaTimeLocation = glGetUniformLocation(vertexProgram, "deltaTime");
+
     //glClearColor(1, 1, 0, 1);
     float clearColor[] = { 1, 1, 0, 1 };
 
@@ -609,6 +680,9 @@ int main(void)
             std::chrono::duration_cast<std::chrono::milliseconds>(currTime - prevTime);
 
         float deltaTime = diff.count();
+
+        // Update deltaTime uniform
+        glUniform1f(deltaTimeLocation, deltaTime);
 
         // Update Camera
         const float cameraSpeed = 20.0f;
@@ -654,7 +728,6 @@ int main(void)
         // Camera
         viewMatrix = glm::lookAtRH(gCameraPosition, gCameraPosition - cameraForward, camUp);
 
-
         // Update Matrices Uniform Buffer
         unsigned int viewMatrixIndex = matricesNamesIndices["View"];
         glNamedBufferSubData(matricesUniformBuffer,
@@ -667,36 +740,17 @@ int main(void)
             matricesUniformOffsets[1], matricesUniformSizes[projectionMatrixIndex] * sizeof(glm::mat4),
             glm::value_ptr(projectionMatrix));
 
-        /* Render here */
-        glClearBufferfv(GL_COLOR, 0, clearColor);
-        
         // Triangles
         glBindProgramPipeline(programPipeline);
         glBindVertexArray(vertexLayout);
 
-        for (int i = 0; i < 20; i++)
-        {
-            const float rotationSpeed = 20.f;
-            static float rotationAmount = 0;
+        glm::mat4 worldMatrix = glm::scale(localMatrix, glm::vec3(10, 10, 1));
+        glNamedBufferSubData(uniformBuffer, 0, uniformBlockSize, glm::value_ptr(worldMatrix));
 
-            rotationAmount += rotationSpeed * deltaTime;
-            worldMatrix = glm::rotate(localMatrix, glm::radians(rotationAmount), glm::vec3(0.0f, 1.0f, 0.0f));
+        /* Render here */
+        glClearBufferfv(GL_COLOR, 0, clearColor);
 
-            worldMatrix = glm::scale(worldMatrix, glm::vec3(10, 10, 1));
-            
-            const float radius = 30.0f;
-            glm::vec3 position(radius, 0.0f, 0.0f);
-            glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
-            glm::mat4 rotatedAngle = glm::rotate(glm::mat4(1.0f), glm::radians(360.0f / 20 * i), upVector);
-
-            worldMatrix = rotatedAngle * translation * worldMatrix;
-            
-            glNamedBufferSubData(uniformBuffer, 0, uniformBlockSize, glm::value_ptr(worldMatrix));
-
-            glDrawArrays(GL_TRIANGLES, 0, 3);
-        }
-
-        //glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, 3, 20);
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
