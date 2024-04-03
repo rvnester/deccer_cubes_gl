@@ -225,6 +225,35 @@ void SetGlfwCallbacks(GLFWwindow* targetWindow)
 void APIENTRY OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, 
     GLsizei length, const GLchar* message, const void* userParam)
 {
+    switch (source)
+    {
+        case GL_DEBUG_SOURCE_API: std::cout << "source = GL_DEBUG_SOURCE_API"; break;
+        case GL_DEBUG_SOURCE_WINDOW_SYSTEM: std::cout << "source = GL_DEBUG_SOURCE_API"; break;
+        case GL_DEBUG_SOURCE_SHADER_COMPILER: std::cout << "source = GL_DEBUG_SOURCE_API"; break;
+        case GL_DEBUG_SOURCE_THIRD_PARTY: std::cout << "source = GL_DEBUG_SOURCE_API"; break;
+        case GL_DEBUG_SOURCE_APPLICATION: std::cout << "source = GL_DEBUG_SOURCE_API"; break;
+        case GL_DEBUG_SOURCE_OTHER: std::cout << "source = GL_DEBUG_SOURCE_API"; break;
+    }
+    switch (type)
+    {
+        case GL_DEBUG_TYPE_ERROR: std::cout << " type = GL_DEBUG_TYPE_ERROR"; break;
+        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: std::cout << " type = GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR"; break;
+        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: std::cout << " type = GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR"; break;
+        case GL_DEBUG_TYPE_PORTABILITY: std::cout << " type = GL_DEBUG_TYPE_PORTABILITY"; break;
+        case GL_DEBUG_TYPE_PERFORMANCE: std::cout << " type = GL_DEBUG_TYPE_PERFORMANCE"; break;
+        case GL_DEBUG_TYPE_MARKER: std::cout << " type = GL_DEBUG_TYPE_MARKER"; break;
+        case GL_DEBUG_TYPE_PUSH_GROUP: std::cout << " type = GL_DEBUG_TYPE_PUSH_GROUP"; break;
+        case GL_DEBUG_TYPE_POP_GROUP: std::cout << " type = GL_DEBUG_TYPE_POP_GROUP"; break;
+        case GL_DEBUG_TYPE_OTHER: std::cout << " type = GL_DEBUG_TYPE_OTHER"; break;
+    }
+    switch(severity)
+    {
+        case GL_DEBUG_SEVERITY_LOW: std::cout << " severity = GL_DEBUG_SEVERITY_LOW"; break;
+        case GL_DEBUG_SEVERITY_MEDIUM: std::cout << " severity = GL_DEBUG_SEVERITY_MEDIUM"; break;
+        case GL_DEBUG_SEVERITY_HIGH: std::cout << " severity = GL_DEBUG_SEVERITY_HIGH "; break;
+        case GL_DEBUG_SEVERITY_NOTIFICATION: std::cout << " severity = GL_DEBUG_SEVERITY_NOTIFICATION "; break;
+    }
+
     int x = 1;
     std::cout << message << "\n";
 }
@@ -242,43 +271,6 @@ struct VertexPosColorUv
     glm::vec3 color;
     glm::vec2 uv;
 };
-
-//void whatever()
-//{
-//    const float rotationSpeed = 20.f; // uniform float rotationSpeed = 20.0f;
-//    static float rotationAmount = 0; // uniform float rotationAmount = 0;
-//
-//    rotationAmount += rotationSpeed * deltaTime; // uniform float deltaTime;
-//    worldMatrix = glm::rotate(localMatrix, glm::radians(rotationAmount), glm::vec3(0.0f, 1.0f, 0.0f));
-//
-//    worldMatrix = glm::scale(worldMatrix, glm::vec3(10, 10, 1)); // Do this once from the cpu side
-//
-//    const float radius = 30.0f; // uniform float radius = 30.0f
-//    {
-//        glm::vec3 position(radius, 0.0f, 0.0f);
-//        glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
-//
-//        // create a matrix instead
-//        mat4 translation(1.0f);
-//        translation[3] = vec4(radius, 0.0f, 0.0f, 1.0f);
-//    }
-//
-//    {
-//        glm::mat4 rotatedAngle = glm::rotate(glm::mat4(1.0f), glm::radians(360.0f / 20 * i), upVector);
-//
-//        float cosAngle = cos(rotationAmount);
-//        float sinAngle = sin(rotationAmount);
-//        mat4 rotation(1.0);
-//        rotation[0] = vec4(cosAngle, 0.0f, sinAngle, 0.0);
-//        rotation[2] = vec4(-sinAngle, 0.0f, cosAngle, 0.0);
-//    }
-//
-//    worldMatrix = rotatedAngle * translation * worldMatrix;
-//
-//    glNamedBufferSubData(uniformBuffer, 0, uniformBlockSize, glm::value_ptr(worldMatrix));
-//
-//    glDrawArrays(GL_TRIANGLES, 0, 3);
-//}
 
 #pragma region Shaders
 
@@ -301,7 +293,7 @@ out gl_PerVertex // must be used with seperable shader program
 
 layout(std140) uniform PerRenderable
 {
-    mat4 World;
+    mat4 World[255];
 };
 
 uniform Matrices
@@ -310,40 +302,9 @@ uniform Matrices
     mat4 Projection;
 };
 
-uniform float deltaTime;
-
 void main()
 {
-    float rotationSpeed = 20.0;
-    float rotationAmount = 0.0;
-    
-    rotationAmount = rotationSpeed * deltaTime + gl_InstanceID;
-
-    float cosAngle = cos(rotationAmount);
-    float sinAngle = sin(rotationAmount);
-    
-    mat4 localRotation;
-    localRotation[0] = vec4(cosAngle, 0.0, sinAngle, 0.0);
-    localRotation[1] = vec4(0.0, 1.0, 0.0, 0.0);
-    localRotation[2] = vec4(-sinAngle, 0.0, cosAngle, 0.0);
-    localRotation[3] = vec4(0.0, 0.0, 0.0, 1.0);
-    
-    mat4 translationMatrix;
-    translationMatrix[0] = vec4(1.0, 0.0, 0.0, 0.0);
-    translationMatrix[1] = vec4(0.0, 1.0, 0.0, 0.0);
-    translationMatrix[2] = vec4(0.0, 0.0, 1.0, 0.0);
-    translationMatrix[3] = vec4(20.0, 0.0, 0.0, 1.0);
-
-    mat4 globalRotation;
-    globalRotation[0] = vec4(cosAngle, 0.0, sinAngle, 0.0);
-    globalRotation[1] = vec4(0.0, 1.0, 0.0, 0.0);
-    globalRotation[2] = vec4(-sinAngle, 0.0, cosAngle, 0.0);
-    globalRotation[3] = vec4(0.0, 0.0, 0.0, 1.0);
-    
-    mat4 worldMatrix = globalRotation * translationMatrix * localRotation * World;
-    
-	//gl_Position = Projection * View * localRotation * World * vVertex;
-	gl_Position = Projection * View * worldMatrix * vVertex;
+    gl_Position = Projection * View * World[gl_InstanceID] * vVertex;
     oColor = vColor;
     oUV = vUV;
     //int index = gl_InstanceID;
@@ -587,6 +548,12 @@ int main(void)
     GLint uniformTypes[numUniforms];
     glGetActiveUniformsiv(vertexProgram, numUniforms, uniformIndices, GL_UNIFORM_TYPE, uniformTypes);
 
+    GLint maxVertexShaderUniformBlocks;
+    glGetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, &maxVertexShaderUniformBlocks);
+
+    GLint maxVertexShaderUniformBlockSize;
+    glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &maxVertexShaderUniformBlockSize);
+
     // Create uniform buffer
     GLuint uniformBuffer;
     glCreateBuffers(1, &uniformBuffer);
@@ -595,7 +562,7 @@ int main(void)
     // We'll be calling this buffer every frame,
     // so we don't want the GPU to allocate a new memory for each call.
     // While the location is constant, we can still update the buffer's contents
-    glNamedBufferStorage(uniformBuffer, uniformBlockSize, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferStorage(uniformBuffer, uniformBlockSize, nullptr, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
 
     glBindBufferBase(GL_UNIFORM_BUFFER, uniformBlockBinding, uniformBuffer);
 
@@ -666,8 +633,6 @@ int main(void)
     // Projection matrix
     glm::mat4 projectionMatrix = glm::perspectiveRH_NO(glm::radians(60.0f), 640.0f / 480.0f, 0.1f, 1000.0f);
 
-    GLint deltaTimeLocation = glGetUniformLocation(vertexProgram, "deltaTime");
-
     //glClearColor(1, 1, 0, 1);
     float clearColor[] = { 1, 1, 0, 1 };
 
@@ -680,9 +645,6 @@ int main(void)
             std::chrono::duration_cast<std::chrono::milliseconds>(currTime - prevTime);
 
         float deltaTime = diff.count();
-
-        // Update deltaTime uniform
-        glUniform1f(deltaTimeLocation, deltaTime);
 
         // Update Camera
         const float cameraSpeed = 20.0f;
@@ -745,12 +707,40 @@ int main(void)
         glBindVertexArray(vertexLayout);
 
         glm::mat4 worldMatrix = glm::scale(localMatrix, glm::vec3(10, 10, 1));
-        glNamedBufferSubData(uniformBuffer, 0, uniformBlockSize, glm::value_ptr(worldMatrix));
+        //glNamedBufferSubData(uniformBuffer, 0, uniformBlockSize, glm::value_ptr(worldMatrix));
+
+        const float rotationSpeed = 2.0f;
+        static float rotationAmount = 0;
+
+        //glNamedBufferSubData(uniformBuffer, 0, uniformBlockSize, glm::value_ptr(worldMatrix));
+        void* mappedPtr = glMapNamedBuffer(uniformBuffer, GL_WRITE_ONLY);
+        glm::mat4* matPtr = reinterpret_cast<glm::mat4*>(mappedPtr);
+        const int num_triangles = 256;
+        for (int i = 0; i < num_triangles; i++)
+        {
+            rotationAmount += rotationSpeed * deltaTime;
+
+            glm::mat4 localRotation = glm::rotate(glm::mat4(1.0f), glm::radians(rotationAmount), glm::vec3(0.0, 1.0f, 0.0f));
+            glm::mat4 localScale = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 1.0f));
+
+            worldMatrix = localRotation * localScale;
+
+            const float globalRadius = 30.0f;
+            const glm::vec3 position(globalRadius, 0.0f, 0.0f);
+            glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
+
+            glm::mat4 worldRotation = glm::rotate(glm::mat4(1.0f), glm::radians(360.0f / num_triangles * i), upVector);
+
+            worldMatrix = worldRotation * translation * worldMatrix;
+
+            matPtr[i] = worldMatrix;
+        }
+        glUnmapNamedBuffer(uniformBuffer);
 
         /* Render here */
         glClearBufferfv(GL_COLOR, 0, clearColor);
 
-        glDrawArraysInstanced(GL_TRIANGLES, 0, 3, 20);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, 3, num_triangles);
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);

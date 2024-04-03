@@ -33,12 +33,12 @@ target_compile_definitions(glm INTERFACE
 	GLM_FORCE_RADIANS
 )
 
-FetchContent_Declare(
-	glew
-	GIT_REPOSITORY https://github.com/nigels-com/glew.git
-	GIT_SHALLOW OFF
-)
-FetchContent_MakeAvailable(glew)
+#FetchContent_Declare(
+#	glew
+#	GIT_REPOSITORY https://github.com/nigels-com/glew.git
+#	GIT_SHALLOW OFF
+#)
+#FetchContent_MakeAvailable(glew)
 
 FetchContent_Declare(
 	glad
