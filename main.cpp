@@ -347,7 +347,7 @@ void CheckLinkStatus(GLuint program)
 
         // Provide the infolog in whatever manner you deem best.
         // Exit with failure.
-        throw std::exception("Failed to link program");
+        return;
     }
 }
 
