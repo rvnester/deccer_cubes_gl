@@ -709,40 +709,39 @@ int main(void)
         glm::mat4 worldMatrix = glm::scale(localMatrix, glm::vec3(10, 10, 1));
         //glNamedBufferSubData(uniformBuffer, 0, uniformBlockSize, glm::value_ptr(worldMatrix));
 
-        const float rotationSpeed = 2.0f;
-        static float rotationAmount = 0;
-
-        //glNamedBufferSubData(uniformBuffer, 0, uniformBlockSize, glm::value_ptr(worldMatrix));
-        //void* mappedPtr = glMapNamedBuffer(uniformBuffer, GL_WRITE_ONLY);
-        //glm::mat4* matPtr = reinterpret_cast<glm::mat4*>(mappedPtr);
-        const int num_triangles = 256;
-        for (int i = 0; i < num_triangles; i++)
-        {
-            rotationAmount += rotationSpeed * deltaTime;
-
-            glm::mat4 localRotation = glm::rotate(glm::mat4(1.0f), glm::radians(rotationAmount), glm::vec3(0.0, 1.0f, 0.0f));
-            glm::mat4 localScale = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 1.0f));
-
-            worldMatrix = localRotation * localScale;
-
-            const float globalRadius = 30.0f;
-            const glm::vec3 position(globalRadius, 0.0f, 0.0f);
-            glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
-
-            glm::mat4 worldRotation = glm::rotate(glm::mat4(1.0f), glm::radians(360.0f / num_triangles * i), upVector);
-
-            worldMatrix = worldRotation * translation * worldMatrix;
-
-            glNamedBufferSubData(uniformBuffer, sizeof(glm::mat4) * i, sizeof(glm::mat4), glm::value_ptr(worldMatrix));
-
-            //matPtr[i] = worldMatrix;
-        }
-        //glUnmapNamedBuffer(uniformBuffer);
-
         /* Render here */
         glClearBufferfv(GL_COLOR, 0, clearColor);
 
-        glDrawArraysInstanced(GL_TRIANGLES, 0, 3, num_triangles);
+        const float rotationSpeed = 1.0f;
+        static float rotationAmount = 0;
+
+        const int totalTrianglesToDraw = 32000;
+        const int maxInstancesPerDrawCall = 256;
+        const int numOfRings = totalTrianglesToDraw / maxInstancesPerDrawCall;
+        for (int globalRadius = 0; globalRadius < numOfRings; globalRadius++)
+        {
+            rotationAmount += rotationSpeed * deltaTime;
+
+            for (int i = 0; i < maxInstancesPerDrawCall; i++)
+            {
+                glm::mat4 localRotation = glm::rotate(glm::mat4(1.0f), glm::radians(rotationAmount), glm::vec3(0.0, 1.0f, 0.0f));
+                glm::mat4 localScale = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 1.0f));
+
+                worldMatrix = localRotation * localScale;
+
+                const glm::vec3 position(globalRadius, 0.0f, 0.0f);
+                glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
+
+                glm::mat4 worldRotation = glm::rotate(glm::mat4(1.0f), 
+                    glm::radians(360.0f / maxInstancesPerDrawCall * i), upVector);
+
+                worldMatrix = worldRotation * translation * worldMatrix;
+
+                glNamedBufferSubData(uniformBuffer, sizeof(glm::mat4) * i, sizeof(glm::mat4), glm::value_ptr(worldMatrix));
+            }
+            
+            glDrawArraysInstanced(GL_TRIANGLES, 0, 3, maxInstancesPerDrawCall);
+        }
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
