@@ -291,9 +291,9 @@ out gl_PerVertex // must be used with seperable shader program
     vec4 gl_Position;
 };
 
-layout(std140) uniform PerRenderable
+layout(std140) buffer PerRenderable
 {
-    mat4 World[256];
+    mat4 World[32000];
 };
 
 uniform Matrices
@@ -503,71 +503,22 @@ int main(void)
     glUseProgramStages(programPipeline, GL_FRAGMENT_SHADER_BIT, fragmentProgram);
 
     
-    // Uniform buffer for the PerRenderable uniform block
-    //
+    // Create a Shader Storage Buffer Object, ssob
+    GLuint shaderStorageBuffer;
+    glCreateBuffers(1, &shaderStorageBuffer);
+
+    const int totalNumTriangles = 32000;
+    const int shaderStorageBufferSize = sizeof(glm::mat4) * totalNumTriangles;
+    glNamedBufferStorage(shaderStorageBuffer, shaderStorageBufferSize, nullptr, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
+
+    GLuint shaderStorageBufferIndex = 0;
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, shaderStorageBufferIndex, shaderStorageBuffer);
+
+    GLuint shaderStorageBufferBinding = 0;
+    glShaderStorageBlockBinding(vertexProgram, shaderStorageBufferIndex, shaderStorageBufferBinding);
     
-    // Query uniform buffer information
-    std::string uniformBlockName{ "PerRenderable"};
-    GLuint uniformBlockIndex = glGetUniformBlockIndex(vertexProgram, uniformBlockName.c_str());
-
-    GLint uniformBlockSize;
-    glGetActiveUniformBlockiv(vertexProgram, uniformBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &uniformBlockSize);
-    
-    GLint uniformBlockBinding;
-    glGetActiveUniformBlockiv(vertexProgram, uniformBlockIndex, GL_UNIFORM_BLOCK_BINDING, &uniformBlockBinding);
-
-    // The above call with UNIFORM_BLOCK_BINDING already has the uniform buffer set to a specific binding index.
-    // However in a real app we'd like to decide to which binding index the uniform block should be bound to.
-    // This will allow us to set a globally shared uniform (aka constant) buffers and use then between shaders.
-    // The following call doesn't change the binding index, but this is just here to show how it can be done.
-    uniformBlockBinding = 1;
-    glUniformBlockBinding(vertexProgram, uniformBlockIndex, uniformBlockBinding);
-
-
-    GLint numBlockActiveUniforms;
-    glGetActiveUniformBlockiv(vertexProgram, uniformBlockIndex, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, &numBlockActiveUniforms);
-
-    // Query unformation about uniforms
-    char* uniformNames[1] = { "World" };
-    const int numUniforms = 1;
-    GLuint uniformIndices[numUniforms];
-    glGetUniformIndices(vertexProgram, numUniforms, uniformNames, uniformIndices);
-
-    GLint uniformOffsets[numUniforms];
-    glGetActiveUniformsiv(vertexProgram, numUniforms, uniformIndices, GL_UNIFORM_OFFSET, uniformOffsets);
-
-    GLint uniformArrayStrides[numUniforms];
-    glGetActiveUniformsiv(vertexProgram, numUniforms, uniformIndices, GL_UNIFORM_ARRAY_STRIDE, uniformArrayStrides);
-
-    GLint uniformMatrixStrides[numUniforms];
-    glGetActiveUniformsiv(vertexProgram, numUniforms, uniformIndices, GL_UNIFORM_MATRIX_STRIDE, uniformMatrixStrides);
-
-    GLint uniformSizes[numUniforms];
-    glGetActiveUniformsiv(vertexProgram, numUniforms, uniformIndices, GL_UNIFORM_SIZE, uniformSizes);
-
-    GLint uniformTypes[numUniforms];
-    glGetActiveUniformsiv(vertexProgram, numUniforms, uniformIndices, GL_UNIFORM_TYPE, uniformTypes);
-
-    GLint maxVertexShaderUniformBlocks;
-    glGetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, &maxVertexShaderUniformBlocks);
-
-    GLint maxVertexShaderUniformBlockSize;
-    glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &maxVertexShaderUniformBlockSize);
-
-    // Create uniform buffer
-    GLuint uniformBuffer;
-    glCreateBuffers(1, &uniformBuffer);
-
-    // Notice the usage of BufferStorage and not BufferData.
-    // We'll be calling this buffer every frame,
-    // so we don't want the GPU to allocate a new memory for each call.
-    // While the location is constant, we can still update the buffer's contents
-    glNamedBufferStorage(uniformBuffer, uniformBlockSize, nullptr, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
-
-    glBindBufferBase(GL_UNIFORM_BUFFER, uniformBlockBinding, uniformBuffer);
 
     glm::mat4 localMatrix(1.0f);
-    //glm::mat4 worldMatrix = glm::rotate(localMatrix, glm::degrees(30.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
     // Camera
     // We'll create a new uniform buffer specifically for view and project matrices
@@ -578,11 +529,8 @@ int main(void)
     GLint matricesUniformBlockSize;
     glGetActiveUniformBlockiv(vertexProgram, matricesUniformBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &matricesUniformBlockSize);
 
-    GLint matricesUniformBlockBinding;
-    glGetActiveUniformBlockiv(vertexProgram, matricesUniformBlockIndex, GL_UNIFORM_BLOCK_BINDING, &matricesUniformBlockBinding);
-
     // Don't forget to bind the uniform block index to the binding slot
-    matricesUniformBlockBinding = 0;
+    GLint matricesUniformBlockBinding = 0;
     glUniformBlockBinding(vertexProgram, matricesUniformBlockIndex, matricesUniformBlockBinding);
 
     // Query info about the uniforms in the matrices uniform block
@@ -603,17 +551,11 @@ int main(void)
     GLint matricesUniformOffsets[numMatricesUniforms];
     glGetActiveUniformsiv(vertexProgram, numMatricesUniforms, matricesUniformIndices, GL_UNIFORM_OFFSET, matricesUniformOffsets);
 
-    GLint matricesUniformArrayStrides[numMatricesUniforms];
-    glGetActiveUniformsiv(vertexProgram, numMatricesUniforms, matricesUniformIndices, GL_UNIFORM_ARRAY_STRIDE, matricesUniformArrayStrides);
-
     GLint matricesUniformMatrixStrides[numMatricesUniforms];
     glGetActiveUniformsiv(vertexProgram, numMatricesUniforms, matricesUniformIndices, GL_UNIFORM_MATRIX_STRIDE, matricesUniformMatrixStrides);
 
     GLint matricesUniformSizes[numMatricesUniforms]; 
     glGetActiveUniformsiv(vertexProgram, numMatricesUniforms, matricesUniformIndices, GL_UNIFORM_SIZE, matricesUniformSizes);
-
-    GLint matricesUniformTypes[numMatricesUniforms];
-    glGetActiveUniformsiv(vertexProgram, numMatricesUniforms, matricesUniformIndices, GL_UNIFORM_TYPE, matricesUniformTypes);
 
     // Create uniform buffer
     GLuint matricesUniformBuffer;
@@ -712,36 +654,30 @@ int main(void)
         /* Render here */
         glClearBufferfv(GL_COLOR, 0, clearColor);
 
-        const float rotationSpeed = 1.0f;
+        const float rotationSpeed = 10.0f;
         static float rotationAmount = 0;
 
-        const int totalTrianglesToDraw = 32000;
-        const int maxInstancesPerDrawCall = 256;
-        const int numOfRings = totalTrianglesToDraw / maxInstancesPerDrawCall;
-        for (int globalRadius = 0; globalRadius < numOfRings; globalRadius++)
+        rotationAmount += rotationSpeed * deltaTime;
+
+        for (int i = 0; i < totalNumTriangles; i++)
         {
-            rotationAmount += rotationSpeed * deltaTime;
+            glm::mat4 localRotation = glm::rotate(glm::mat4(1.0f), glm::radians(rotationAmount), glm::vec3(0.0, 1.0f, 0.0f));
+            glm::mat4 localScale = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 1.0f));
 
-            for (int i = 0; i < maxInstancesPerDrawCall; i++)
-            {
-                glm::mat4 localRotation = glm::rotate(glm::mat4(1.0f), glm::radians(rotationAmount), glm::vec3(0.0, 1.0f, 0.0f));
-                glm::mat4 localScale = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 1.0f));
+            worldMatrix = localRotation * localScale;
 
-                worldMatrix = localRotation * localScale;
+            const glm::vec3 position(10.0f, 0.0f, 0.0f);
+            glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
 
-                const glm::vec3 position(globalRadius, 0.0f, 0.0f);
-                glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
+            glm::mat4 worldRotation = glm::rotate(glm::mat4(1.0f), 
+                glm::radians(360.0f / totalNumTriangles * i), upVector);
 
-                glm::mat4 worldRotation = glm::rotate(glm::mat4(1.0f), 
-                    glm::radians(360.0f / maxInstancesPerDrawCall * i), upVector);
+            worldMatrix = worldRotation * translation * worldMatrix;
 
-                worldMatrix = worldRotation * translation * worldMatrix;
-
-                glNamedBufferSubData(uniformBuffer, sizeof(glm::mat4) * i, sizeof(glm::mat4), glm::value_ptr(worldMatrix));
-            }
-            
-            glDrawArraysInstanced(GL_TRIANGLES, 0, 3, maxInstancesPerDrawCall);
+            glNamedBufferSubData(shaderStorageBuffer, sizeof(glm::mat4) * i, sizeof(glm::mat4), glm::value_ptr(worldMatrix));
         }
+            
+        glDrawArraysInstanced(GL_TRIANGLES, 0, 3, totalNumTriangles);
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
@@ -756,7 +692,8 @@ int main(void)
     glDeleteSamplers(1, &sampler);
     glDeleteTextures(1, &texture);
     glDeleteVertexArrays(1, &vertexLayout);
-    glDeleteBuffers(1, &uniformBuffer);
+    glDeleteBuffers(1, &matricesUniformBuffer);
+    glDeleteBuffers(1, &shaderStorageBuffer);
     glDeleteBuffers(1, &vertexBuffer);
     glDeleteProgram(vertexProgram);
     glDeleteProgram(fragmentProgram);
