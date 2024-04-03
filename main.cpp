@@ -293,7 +293,7 @@ out gl_PerVertex // must be used with seperable shader program
 
 layout(std140) uniform PerRenderable
 {
-    mat4 World[255];
+    mat4 World[256];
 };
 
 uniform Matrices
@@ -713,8 +713,8 @@ int main(void)
         static float rotationAmount = 0;
 
         //glNamedBufferSubData(uniformBuffer, 0, uniformBlockSize, glm::value_ptr(worldMatrix));
-        void* mappedPtr = glMapNamedBuffer(uniformBuffer, GL_WRITE_ONLY);
-        glm::mat4* matPtr = reinterpret_cast<glm::mat4*>(mappedPtr);
+        //void* mappedPtr = glMapNamedBuffer(uniformBuffer, GL_WRITE_ONLY);
+        //glm::mat4* matPtr = reinterpret_cast<glm::mat4*>(mappedPtr);
         const int num_triangles = 256;
         for (int i = 0; i < num_triangles; i++)
         {
@@ -733,9 +733,11 @@ int main(void)
 
             worldMatrix = worldRotation * translation * worldMatrix;
 
-            matPtr[i] = worldMatrix;
+            glNamedBufferSubData(uniformBuffer, sizeof(glm::mat4) * i, sizeof(glm::mat4), glm::value_ptr(worldMatrix));
+
+            //matPtr[i] = worldMatrix;
         }
-        glUnmapNamedBuffer(uniformBuffer);
+        //glUnmapNamedBuffer(uniformBuffer);
 
         /* Render here */
         glClearBufferfv(GL_COLOR, 0, clearColor);
