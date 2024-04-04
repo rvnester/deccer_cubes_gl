@@ -691,8 +691,12 @@ int main(void)
                     /*glm::mat4 worldRotation = glm::rotate(glm::mat4(1.0f),
                         glm::radians(360.0f / totalNumTriangles * i), upVector);*/
 
+                    // move box to the center of the world
+                    const float halfBox = boxSize / 2;
+                    glm::vec3 boxPosition(-halfBox, -halfBox, -halfBox);
+                    glm::mat4 boxTranslation = glm::translate(glm::mat4(1.0f), boxPosition);
 
-                    worldMatrix = /*worldRotation **/ translation * worldMatrix;
+                    worldMatrix = boxTranslation * /*worldRotation **/ translation * worldMatrix;
 
                     int offset = x + (arraySize * y) + (z * arraySize * arraySize);
 
