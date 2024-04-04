@@ -2,6 +2,7 @@
 #include <chrono>
 #include <unordered_map>
 #include <cmath>
+#include <random>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -579,6 +580,10 @@ int main(void)
     //glClearColor(1, 1, 0, 1);
     float clearColor[] = { 1, 1, 0, 1 };
 
+    std::random_device randomeDevice;
+    std::mt19937 gen(randomeDevice());
+    std::uniform_real_distribution<> randomRotation(0.0, 360.0);
+
     const int numberOfDimensions = 3; // box has 3 dimentions
     float power = std::powf(totalNumTriangles, 1.0f / 3.0f);
     int iterationsPerDimension = std::ceil(power);
@@ -666,23 +671,26 @@ int main(void)
 
         const int boxSize = 512;
         const int arraySize = iterationsPerDimension - 1;
+        const float coordinateScaler = (float)boxSize / (float)iterationsPerDimension;
         for (int z = 0; z < iterationsPerDimension; z++)
         {
             for (int y = 0; y < iterationsPerDimension; y++)
             {
                 for (int x = 0; x < iterationsPerDimension; x++)
                 {
+                    rotationAmount += rotationSpeed * deltaTime + (float)randomRotation(gen);
                     glm::mat4 localRotation = glm::rotate(glm::mat4(1.0f), glm::radians(rotationAmount), glm::vec3(0.0, 1.0f, 0.0f));
                     glm::mat4 localScale = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 1.0f));
 
-                    //worldMatrix = localRotation * localScale;
-                    worldMatrix = localRotation;
+                    worldMatrix = localRotation * localScale;
+                    //worldMatrix = localRotation;
 
-                    const glm::vec3 position(x, y, z);
+                    const glm::vec3 position(x * coordinateScaler, y * coordinateScaler, z * coordinateScaler);
                     glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
 
                     /*glm::mat4 worldRotation = glm::rotate(glm::mat4(1.0f),
                         glm::radians(360.0f / totalNumTriangles * i), upVector);*/
+
 
                     worldMatrix = /*worldRotation **/ translation * worldMatrix;
 
