@@ -663,27 +663,7 @@ int main(void)
         static float rotationAmount = 0;
 
         rotationAmount += rotationSpeed * deltaTime;
-        //for (int i = 0; i < totalNumTriangles; i++)
-        //{
-        //    glm::mat4 localRotation = glm::rotate(glm::mat4(1.0f), glm::radians(rotationAmount), glm::vec3(0.0, 1.0f, 0.0f));
-        //    glm::mat4 localScale = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 1.0f));
 
-        //    //worldMatrix = localRotation * localScale;
-        //    worldMatrix = localRotation;
-
-        //    float t = (float)i / 32000.0f;
-        //    float p = (1 - t) * (-255) + t * 255;
-
-        //    const glm::vec3 position(p, p, p);
-        //    glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
-
-        //    /*glm::mat4 worldRotation = glm::rotate(glm::mat4(1.0f), 
-        //        glm::radians(360.0f / totalNumTriangles * i), upVector);*/
-
-        //    worldMatrix = /*worldRotation **/ translation * worldMatrix;
-
-        //    glNamedBufferSubData(shaderStorageBuffer, sizeof(glm::mat4) * i, sizeof(glm::mat4), glm::value_ptr(worldMatrix));
-        //}
         const int boxSize = 512;
         const int arraySize = iterationsPerDimension - 1;
         for (int z = 0; z < iterationsPerDimension; z++)
