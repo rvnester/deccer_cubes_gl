@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <cmath>
 #include <random>
+#include <vector>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -352,7 +353,6 @@ void CheckLinkStatus(GLuint program)
         return;
     }
 }
-
 #pragma endregion
 
 int main(void)
@@ -577,16 +577,34 @@ int main(void)
     // Projection matrix
     glm::mat4 projectionMatrix = glm::perspectiveRH_NO(glm::radians(60.0f), 640.0f / 480.0f, 0.1f, 1000.0f);
 
-    //glClearColor(1, 1, 0, 1);
-    float clearColor[] = { 1, 1, 0, 1 };
-
-    std::random_device randomeDevice;
-    std::mt19937 gen(randomeDevice());
-    std::uniform_real_distribution<> randomRotation(0.0, 360.0);
-
     const int numberOfDimensions = 3; // box has 3 dimentions
     float power = std::powf(totalNumTriangles, 1.0f / 3.0f);
     int iterationsPerDimension = std::ceil(power);
+
+    std::random_device randomDevice;
+    std::mt19937 posGen(randomDevice());
+    std::uniform_real_distribution<> randomPosition(0.0f, 512.0f);
+
+    std::random_device randomeDevice;
+    std::mt19937 rotGen(randomeDevice());
+    std::uniform_real_distribution<> randomRotation(0.0, 360.0);
+
+    std::vector<glm::mat4> positions(totalNumTriangles);
+    std::vector<float> rotationsAmount(totalNumTriangles);
+
+    for (int i = 0; i < totalNumTriangles; i++)
+    {
+        //positions[i] = glm::mat4(1.0f);
+        //positions[i][3] = glm::vec4(randomPosition(posGen), randomPosition(posGen), randomPosition(posGen), 1.0f);
+        //glm::column(positions[i], 3) = glm::vec4(randomPosition(posGen), randomPosition(posGen), randomPosition(posGen), 1.0f);
+        positions[i] = glm::translate(glm::mat4(1.0f), glm::vec3(randomPosition(posGen), randomPosition(posGen), randomPosition(posGen)));
+        rotationsAmount[i] = randomRotation(rotGen);
+    }
+
+    std::vector<glm::mat4> worldMatrices(totalNumTriangles);
+
+    //glClearColor(1, 1, 0, 1);
+    float clearColor[] = { 1, 1, 0, 1 };
 
     /* Loop until the user closes the window */
     std::chrono::steady_clock::time_point prevTime = std::chrono::steady_clock::now();
@@ -667,44 +685,16 @@ int main(void)
         const float rotationSpeed = 10.0f;
         static float rotationAmount = 0;
 
-        rotationAmount += rotationSpeed * deltaTime;
+        glm::mat4 localScale = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 1.0f));
 
-        const int boxSize = 512;
-        const int arraySize = iterationsPerDimension - 1;
-        const float coordinateScaler = (float)boxSize / (float)iterationsPerDimension;
-        for (int z = 0; z < iterationsPerDimension; z++)
+        for (int i = 0; i < totalNumTriangles; i++)
         {
-            for (int y = 0; y < iterationsPerDimension; y++)
-            {
-                for (int x = 0; x < iterationsPerDimension; x++)
-                {
-                    rotationAmount += rotationSpeed * deltaTime + (float)randomRotation(gen);
-                    glm::mat4 localRotation = glm::rotate(glm::mat4(1.0f), glm::radians(rotationAmount), glm::vec3(0.0, 1.0f, 0.0f));
-                    glm::mat4 localScale = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 1.0f));
-
-                    worldMatrix = localRotation * localScale;
-                    //worldMatrix = localRotation;
-
-                    const glm::vec3 position(x * coordinateScaler, y * coordinateScaler, z * coordinateScaler);
-                    glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
-
-                    /*glm::mat4 worldRotation = glm::rotate(glm::mat4(1.0f),
-                        glm::radians(360.0f / totalNumTriangles * i), upVector);*/
-
-                    // move box to the center of the world
-                    const float halfBox = boxSize / 2;
-                    glm::vec3 boxPosition(-halfBox, -halfBox, -halfBox);
-                    glm::mat4 boxTranslation = glm::translate(glm::mat4(1.0f), boxPosition);
-
-                    worldMatrix = boxTranslation * /*worldRotation **/ translation * worldMatrix;
-
-                    int offset = x + (arraySize * y) + (z * arraySize * arraySize);
-
-                    glNamedBufferSubData(shaderStorageBuffer, 
-                        sizeof(glm::mat4) * offset, sizeof(glm::mat4), glm::value_ptr(worldMatrix));
-                }
-            }
+            rotationsAmount[i] += rotationSpeed * deltaTime;
+            glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), glm::radians(rotationsAmount[i]), upVector);
+            worldMatrices[i] = positions[i] * rotation * localScale;
         }
+
+        glNamedBufferSubData(shaderStorageBuffer, 0, sizeof(glm::mat4) * totalNumTriangles, worldMatrices.data());
             
         glDrawArraysInstanced(GL_TRIANGLES, 0, 3, totalNumTriangles);
 
