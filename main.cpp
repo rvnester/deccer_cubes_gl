@@ -449,15 +449,15 @@ int main(void)
     char const* filename = "../assets/marioimage.jpg";
     int width, height;
     int channelsInFile;
-    const int desiredChannels = 0;
+    const int desiredChannels = 4;
     stbi_uc* imageData = stbi_load(filename, &width, &height, &channelsInFile, desiredChannels);
 
     // Create Texture
     GLuint texture;
     glCreateTextures(GL_TEXTURE_2D, 1, &texture);
 
-    glTextureStorage2D(texture, 1, GL_RGB16, width, height);
-    glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, (void*)imageData);
+    glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
+    glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, (void*)imageData);
 
     stbi_image_free(imageData);
 
