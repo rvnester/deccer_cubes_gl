@@ -288,6 +288,7 @@ layout (location = 2) in vec2 vUV;
 
 layout (location = 0) out vec3 oColor;
 layout (location = 1) out vec2 oUV;
+layout (location = 2) out float oUseTexture;
 
 out gl_PerVertex // must be used with seperable shader program
 {
@@ -310,7 +311,7 @@ void main()
     gl_Position = Projection * View * World[gl_InstanceID] * vVertex;
     oColor = vColor;
     oUV = vUV;
-    //int index = gl_InstanceID;
+    oUseTexture = gl_InstanceID % 2;
 }
 )";
 
@@ -320,6 +321,7 @@ R"(
 
 layout (location = 0) in vec3 iColor;
 layout (location = 1) in vec2 iUV;
+layout (location = 2) in float iUseTexture;
 
 layout (location = 0) out vec4 vFragColor;
 
@@ -327,8 +329,9 @@ layout (location = 0) uniform sampler2D sampler;
 
 void main()
 {
-	vFragColor = vec4(iColor, 1.0);
-    vFragColor = texture(sampler, iUV);
+	//vFragColor = vec4(iColor, 1.0);
+    //vFragColor = texture(sampler, iUV);
+    vFragColor = (1 - iUseTexture) * texture(sampler, iUV) + iUseTexture * vec4(iColor, 1.0);
 }
 )";
 
@@ -686,12 +689,13 @@ int main(void)
         static float rotationAmount = 0;
 
         glm::mat4 localScale = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 1.0f));
+        glm::mat4 boxTranslation = glm::translate(glm::mat4(1.0f), glm::vec3(-512 / 2, -512 / 2, -512 / 2));
 
         for (int i = 0; i < totalNumTriangles; i++)
         {
             rotationsAmount[i] += rotationSpeed * deltaTime;
-            glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), glm::radians(rotationsAmount[i]), upVector);
-            worldMatrices[i] = positions[i] * rotation * localScale;
+            glm::mat4 localRotation = glm::rotate(glm::mat4(1.0f), glm::radians(rotationsAmount[i]), upVector);
+            worldMatrices[i] = boxTranslation * positions[i] * localRotation * localScale;
         }
 
         glNamedBufferSubData(shaderStorageBuffer, 0, sizeof(glm::mat4) * totalNumTriangles, worldMatrices.data());
