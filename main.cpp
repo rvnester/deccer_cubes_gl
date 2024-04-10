@@ -128,7 +128,7 @@ void OnMouseButton(GLFWwindow* window, int button, int action, int mods)
 
 void OnMouseMove(GLFWwindow* window, double x, double y)
 {
-    if (!gInputRightMouseDown)
+    /*if (!gInputRightMouseDown)
     {
         return;
     }
@@ -137,7 +137,7 @@ void OnMouseMove(GLFWwindow* window, double x, double y)
     gInputDeltaMouseY = y - gInputPrevMouseY;
 
     gInputPrevMouseX = x;
-    gInputPrevMouseY = y;
+    gInputPrevMouseY = y;*/
 }
 
 void OnMouseScroll(GLFWwindow* window, double xOffset, double yOffset)
@@ -607,7 +607,11 @@ int main(void)
     std::vector<glm::mat4> worldMatrices(totalNumTriangles);
 
     //glClearColor(1, 1, 0, 1);
-    float clearColor[] = { 1, 1, 0, 1 };
+    const float clearColor[] = { 1, 1, 0, 1 };
+    const float clearDepth = 1.0f;
+    const int clearStencil = 255;
+
+    glEnable(GL_DEPTH_TEST);
 
     /* Loop until the user closes the window */
     std::chrono::steady_clock::time_point prevTime = std::chrono::steady_clock::now();
@@ -618,6 +622,16 @@ int main(void)
             std::chrono::duration_cast<std::chrono::milliseconds>(currTime - prevTime);
 
         float deltaTime = diff.count();
+
+        // Update Input
+        double xPos, yPos;
+        glfwGetCursorPos(window, &xPos, &yPos);
+
+        gInputDeltaMouseX = xPos - gInputPrevMouseX;
+        gInputDeltaMouseY = yPos - gInputPrevMouseY;
+
+        gInputPrevMouseX = xPos;
+        gInputPrevMouseY = yPos;
 
         // Update Camera
         const float cameraSpeed = 20.0f;
@@ -630,8 +644,8 @@ int main(void)
         const glm::vec3 forwardVector(0.0f, 0.0f, 1.0f);
 
         // Camera Y Rotation, Yaw
-        cameraYawAmount += cameraRotationSpeed * deltaTime * gInputDeltaMouseX;
-        cameraPitchAmount += cameraRotationSpeed * deltaTime * gInputDeltaMouseY;
+        cameraYawAmount += cameraRotationSpeed * deltaTime * gInputDeltaMouseX * gInputRightMouseDown;
+        cameraPitchAmount += cameraRotationSpeed * deltaTime * gInputDeltaMouseY * gInputRightMouseDown;
         if (cameraPitchAmount > 89.0f)
         {
             cameraPitchAmount = 89.0f;
@@ -684,6 +698,8 @@ int main(void)
 
         /* Render here */
         glClearBufferfv(GL_COLOR, 0, clearColor);
+        glClearBufferfv(GL_DEPTH, 0, &clearDepth);
+        //glClearBufferiv(GL_STENCIL, 0, &clearStencil);
 
         const float rotationSpeed = 10.0f;
         static float rotationAmount = 0;
