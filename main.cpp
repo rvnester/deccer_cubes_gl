@@ -538,30 +538,6 @@ int main(void)
     GLint matricesUniformBlockBinding = 0;
     glUniformBlockBinding(vertexProgram, matricesUniformBlockIndex, matricesUniformBlockBinding);
 
-    // Query info about the uniforms in the matrices uniform block
-    char* matricesUniformNames[2] = { "View", "Projection" };
-    const int numMatricesUniforms = 2;
-    GLuint matricesUniformIndices[numMatricesUniforms];
-    glGetUniformIndices(vertexProgram, numMatricesUniforms, matricesUniformNames, matricesUniformIndices);
-
-    std::unordered_map<std::string, unsigned int> matricesNamesIndices;
-
-    for (int i = 0; i < numMatricesUniforms; i++)
-    {
-        std::string name{ matricesUniformNames[i] };
-        unsigned int index = matricesUniformIndices[i];
-        matricesNamesIndices[name] = index;
-    }
-
-    GLint matricesUniformOffsets[numMatricesUniforms];
-    glGetActiveUniformsiv(vertexProgram, numMatricesUniforms, matricesUniformIndices, GL_UNIFORM_OFFSET, matricesUniformOffsets);
-
-    GLint matricesUniformMatrixStrides[numMatricesUniforms];
-    glGetActiveUniformsiv(vertexProgram, numMatricesUniforms, matricesUniformIndices, GL_UNIFORM_MATRIX_STRIDE, matricesUniformMatrixStrides);
-
-    GLint matricesUniformSizes[numMatricesUniforms]; 
-    glGetActiveUniformsiv(vertexProgram, numMatricesUniforms, matricesUniformIndices, GL_UNIFORM_SIZE, matricesUniformSizes);
-
     // Create uniform buffer
     GLuint matricesUniformBuffer;
     glCreateBuffers(1, &matricesUniformBuffer);
@@ -678,15 +654,13 @@ int main(void)
         viewMatrix = glm::lookAtRH(gCameraPosition, gCameraPosition - cameraForward, camUp);
 
         // Update Matrices Uniform Buffer
-        unsigned int viewMatrixIndex = matricesNamesIndices["View"];
         glNamedBufferSubData(matricesUniformBuffer,
             // The offsets come in the wrong order for some reason
-            matricesUniformOffsets[0], matricesUniformSizes[viewMatrixIndex] * sizeof(glm::mat4),
+            0, sizeof(glm::mat4),
             glm::value_ptr(viewMatrix));
 
-        unsigned int projectionMatrixIndex = matricesNamesIndices["Projection"];
         glNamedBufferSubData(matricesUniformBuffer,
-            matricesUniformOffsets[1], matricesUniformSizes[projectionMatrixIndex] * sizeof(glm::mat4),
+            sizeof(glm::mat4), sizeof(glm::mat4),
             glm::value_ptr(projectionMatrix));
 
         // Triangles
