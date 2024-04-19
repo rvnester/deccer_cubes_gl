@@ -582,6 +582,8 @@ int main(void)
 
     std::vector<glm::mat4> worldMatrices(totalNumTriangles);
 
+    std::vector<glm::mat4> unCulledTriangleMatrices(totalNumTriangles);
+
     //glClearColor(1, 1, 0, 1);
     const float clearColor[] = { 1, 1, 0, 1 };
     const float clearDepth = 1.0f;
@@ -668,7 +670,6 @@ int main(void)
         glBindVertexArray(vertexLayout);
 
         glm::mat4 worldMatrix = glm::scale(localMatrix, glm::vec3(10, 10, 1));
-        //glNamedBufferSubData(uniformBuffer, 0, uniformBlockSize, glm::value_ptr(worldMatrix));
 
         /* Render here */
         glClearBufferfv(GL_COLOR, 0, clearColor);
@@ -681,16 +682,55 @@ int main(void)
         glm::mat4 localScale = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 1.0f));
         glm::mat4 boxTranslation = glm::translate(glm::mat4(1.0f), glm::vec3(-512 / 2, -512 / 2, -512 / 2));
 
+        const float boundingSphereRadius = glm::column(localScale, 0).x * 0.5f;
+
+        /*for (int i = 0; i < totalNumTriangles; i++)
+        {
+            rotationsAmount[i] += rotationSpeed * deltaTime;
+            glm::mat4 localRotation = glm::rotate(glm::mat4(1.0f), glm::radians(rotationsAmount[i]), upVector);
+            worldMatrices[i] = boxTranslation * positions[i] * localRotation * localScale;
+        }*/
+
+        int numTrianglesToDraw = 0;
+        unCulledTriangleMatrices.clear();
         for (int i = 0; i < totalNumTriangles; i++)
         {
             rotationsAmount[i] += rotationSpeed * deltaTime;
             glm::mat4 localRotation = glm::rotate(glm::mat4(1.0f), glm::radians(rotationsAmount[i]), upVector);
             worldMatrices[i] = boxTranslation * positions[i] * localRotation * localScale;
+
+            glm::vec4 row0 = glm::row(projectionMatrix, 0);
+            glm::vec4 row1 = glm::row(projectionMatrix, 1);
+            glm::vec4 row2 = glm::row(projectionMatrix, 2);
+            glm::vec4 row3 = glm::row(projectionMatrix, 3);
+
+            glm::vec4 rightClipPlane = row0 - row3;
+            glm::vec4 leftClipPalne = row0 + row3;
+            glm::vec4 topClipPalne = row1 - row3;
+            glm::vec4 bottomClipPlane = row1 + row3;
+            glm::vec4 farClipPlane = row2 - row3;
+            glm::vec4 nearClipPlan = row2 + row3;
+
+            glm::vec4 worldPosition = glm::column(worldMatrices[i], 3);
+            glm::vec4 viewPosition = viewMatrix * worldPosition;
+
+            bool isInsideRightPlane = glm::dot(viewPosition, rightClipPlane) <= 0;
+            bool isInsideLeftPlane = glm::dot(viewPosition, leftClipPalne) >= 0;
+            bool isInsideTopPlane = glm::dot(viewPosition, topClipPalne) <= 0;
+            bool itInsideButtomPlane = glm::dot(viewPosition, bottomClipPlane) >= 0;
+            bool isInsideNearPlane = glm::dot(viewPosition, farClipPlane) <= 0;
+            bool isInsideFarPlane = glm::dot(viewPosition, nearClipPlan) >= 0;
+
+            if (isInsideRightPlane && isInsideLeftPlane && isInsideTopPlane && itInsideButtomPlane && isInsideNearPlane && isInsideFarPlane)
+            {
+                numTrianglesToDraw++;
+                unCulledTriangleMatrices.push_back(worldMatrices[i]);
+            }
         }
 
-        glNamedBufferSubData(shaderStorageBuffer, 0, sizeof(glm::mat4) * totalNumTriangles, worldMatrices.data());
+        glNamedBufferSubData(shaderStorageBuffer, 0, sizeof(glm::mat4) * numTrianglesToDraw, unCulledTriangleMatrices.data());
             
-        glDrawArraysInstanced(GL_TRIANGLES, 0, 3, totalNumTriangles);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, 3, numTrianglesToDraw);
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
